@@ -1,0 +1,77 @@
+{
+  "name": "log-pose",
+  "version": "0.2.0",
+  "description": "Log Pose - companion app for Only OS (app store, features, system, metrics, tweaks)",
+  "main": "electron/main.js",
+  "scripts": {
+    "dev": "concurrently -k \"vite\" \"wait-on tcp:5173 && node electron/dev-launch.js\"",
+    "vite": "vite",
+    "build:renderer": "vite build",
+    "build": "vite build && electron-builder",
+    "build:portable": "vite build && electron-builder --win portable",
+    "publish": "vite build && electron-builder --win --publish always",
+    "make-icon": "electron scripts/render-logo.js"
+  },
+  "author": "pedronly",
+  "license": "MIT",
+  "dependencies": {
+    "@fontsource/inter": "^5.2.6",
+    "@fontsource/space-mono": "^5.2.9",
+    "electron-updater": "^6.3.9",
+    "simple-icons": "^16.21.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.4",
+    "concurrently": "^9.1.0",
+    "cross-env": "^7.0.3",
+    "electron": "^33.0.0",
+    "electron-builder": "^25.0.0",
+    "png-to-ico": "^3.0.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "vite": "^6.0.0",
+    "wait-on": "^8.0.1"
+  },
+  "build": {
+    "appId": "com.pedronly.log-pose",
+    "productName": "Log Pose",
+    "directories": {
+      "output": "dist-app"
+    },
+    "files": [
+      "electron/**/*",
+      "dist/**/*"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "assets/icon.ico"
+    },
+    "portable": {
+      "artifactName": "LogPose-portable.exe"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": true,
+      "allowToChangeInstallationDirectory": false,
+      "artifactName": "LogPose-Setup.exe"
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "pedruamerico",
+      "repo": "only-os-releases"
+    }
+  }
+}

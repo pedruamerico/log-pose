@@ -1,11 +1,11 @@
 # Log Pose
 
-Post-format Windows app installer. You reinstall the OS, run Log Pose, and the
+Post-format Windows utility. You reinstall Windows, run Log Pose, and the
 programs you always end up needing are installed in one place — fast. Plus
-debloat, performance/privacy tweaks, and a startup manager.
+AppX debloat, performance/privacy tweaks, and a startup manager.
 
-Standalone app — runs on any normal Windows 11 install. The **Only OS** playbook
-can optionally download it as a companion, but Log Pose doesn't depend on it.
+Standalone app for **any Windows 11 install** — no dependency on any specific
+build or image.
 
 ## Stack
 

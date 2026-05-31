@@ -93,9 +93,11 @@ window.TWEAKS = {
     // Windows Defender is KEPT ON by default (negligible FPS cost; the FPS win is
     // VBS off). No toggle here on purpose -- turn real-time protection off in
     // Windows Security if you ever want it. Removing/re-adding an AV is not a tweak.
-    { id: 'uac',         backend: 'uac',          name: 'Prompts do UAC',            desc: 'Avisos do Controle de Conta de Usuário ao elevar. Desligado = "nunca notificar" (sem pop-ups). Não afeta apps da Store.', on: false },
-    { id: 'auto-update', backend: 'auto-update',  name: 'Automatic Windows Update',  desc: 'Auto-download de updates/drivers, sem reboot forçado. Desligar volta ao modo manual (você atualiza quando quiser).', on: true },
-    { id: 'vbs',         backend: 'vbs',          name: 'Virtualization-Based Security (VBS)', desc: 'Kernel memory-integrity protection. OFF gives ~5-8% more FPS (Gaming mode) and does NOT risk a Vanguard ban (Riot allows it via VAN 9005), but lowers Windows kernel security. Requires reboot.', on: false },
+    // name/desc are English keys translated via i18n (window.onlyOS UI is pt-BR
+    // by default); the TweaksScreen renders them through t().
+    { id: 'uac',         backend: 'uac',          name: 'UAC prompts',            desc: 'User Account Control prompts when elevating. Off = "never notify" (no pop-ups). Does not affect Store apps.', on: false },
+    { id: 'auto-update', backend: 'auto-update',  name: 'Automatic Windows Update',  desc: 'Auto-downloads updates/drivers, no forced reboot. Turning it off returns to manual mode (you update when you want).', on: true },
+    { id: 'vbs',         backend: 'vbs',          name: 'Virtualization-Based Security (VBS)', desc: 'Kernel memory-integrity protection. Off gives ~5-8% more FPS (gaming mode) and does NOT risk a Vanguard ban (Riot allows it via VAN 9005), but lowers Windows kernel security. Requires reboot.', on: false },
   ],
   Performance: [
     { id: 'ultimate-power', backend: 'ultimate-power', name: 'Ultimate Performance power plan', desc: 'Unlocks the hidden high-performance power scheme.', recommend: true, on: true },
@@ -106,3 +108,20 @@ window.TWEAKS = {
     { id: 'wsl', backend: 'wsl', name: 'Linux & containers (WSL2)', desc: 'Enables WSL2 + Hyper-V platform. Required for Docker Desktop / Podman / Linux dev. Off keeps Hyper-V dormant for max gaming FPS. Requires reboot.', on: false },
   ],
 };
+
+// Service-optimization toggles. `on` = optimized (reduced start type); turning a
+// toggle off restores the Windows default (the backend backs up the original
+// value first, so revert is faithful). Status is read live (service_list); the
+// `name` must match the Windows service key. Services absent on the machine are
+// hidden. Labels in pt-BR, service names in English (UI convention). Requires a
+// reboot to fully take effect. Texts go through t() — see i18n.js.
+window.SERVICES = [
+  { name: 'SysMain',          label: 'SysMain (Superfetch)',   desc: 'Pré-carrega apps na RAM. Reduzir libera memória; pouco efeito em SSD.' },
+  { name: 'WSearch',          label: 'Windows Search',         desc: 'Indexador de busca. Manual reduz I/O em segundo plano (a busca ainda funciona).' },
+  { name: 'Spooler',          label: 'Spooler de impressão',   desc: 'Fila de impressão. Manual = liga ao imprimir. Reduz se você não imprime.' },
+  { name: 'Ndu',              label: 'Network Data Usage (Ndu)', desc: 'Coleta uso de rede por app. Desligar libera um pouco de RAM (perde o gráfico por app no Gerenciador).' },
+  { name: 'Fax',              label: 'Fax',                    desc: 'Serviço de fax. Desligar não afeta nada num PC moderno.' },
+  { name: 'GpuEnergyDrv',     label: 'GPU Energy Driver',      desc: 'Driver de telemetria de energia da GPU. Desligar reduz overhead.' },
+  { name: 'DiagTrack',        label: 'Telemetria (DiagTrack)', desc: 'Coleta de diagnósticos/telemetria da Microsoft. Desligar é um ganho de privacidade.' },
+  { name: 'dmwappushservice', label: 'WAP Push (telemetria)',  desc: 'Roteamento de mensagens de telemetria. Desligar é seguro.' },
+];

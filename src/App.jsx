@@ -164,9 +164,9 @@ const Sidebar = ({ route, setRoute, counts, edition, version, onOpenSearch }) =>
       </nav>
 
       <div className="sidebar-foot">
-        <div className="edition-pill" title={`${edition || 'Only OS'}${version ? ' · v' + version : ''}`}>
+        <div className="edition-pill" title={`${edition || 'Windows'}${version ? ' · v' + version : ''}`}>
           <span className="status-dot" />
-          <span className="edition-name">{edition || 'Only OS'}</span>
+          <span className="edition-name">{edition || 'Windows'}</span>
           {version && <span className="edition-ver">v{version}</span>}
         </div>
       </div>
@@ -568,8 +568,9 @@ const SystemScreen = ({ onAction, rows }) => {
 };
 
 // ============ TWEAKS SCREEN ============
-const TweaksScreen = ({ tweaks, onToggle, gameModeOn, gameBusy, onToggleGameMode }) => {
+const TweaksScreen = ({ tweaks, onToggle, gameModeOn, gameBusy, onToggleGameMode, services, serviceStatus, onToggleService, coreIso, onOpenCoreIso }) => {
   const t = useT();
+  const visibleServices = (services || []).filter(s => serviceStatus[s.name]?.exists);
   return (
   <div className="fade-in">
     <div className={'game-mode' + (gameModeOn ? ' on' : '')}>
@@ -588,6 +589,28 @@ const TweaksScreen = ({ tweaks, onToggle, gameModeOn, gameBusy, onToggleGameMode
       />
     </div>
 
+    {/* Core Isolation / Memory Integrity — read-only posture check. We detect
+        and warn (Valorant/Vanguard needs it on); we never force-enable it. */}
+    {coreIso && (
+      <div className={'game-mode' + (coreIso.hvci ? ' on' : '')}>
+        <div className="game-mode-icon"><Icon name={coreIso.hvci ? 'check' : 'game'} size={22} /></div>
+        <div className="game-mode-text">
+          <h4 className="game-mode-title">
+            {t('Memory Integrity (Core Isolation)')}{' '}
+            {coreIso.hvci && <span className="game-mode-live">{t('On')}</span>}
+          </h4>
+          <p className="game-mode-desc">
+            {coreIso.hvci
+              ? t('On — the Valorant/Vanguard requirement is met.')
+              : t('Off — Valorant (Vanguard) requires it on. Open Windows settings to enable it; Windows checks driver compatibility first.')}
+          </p>
+        </div>
+        {!coreIso.hvci && (
+          <button className="btn btn-sm" onClick={onOpenCoreIso}>{t('Open settings')}</button>
+        )}
+      </div>
+    )}
+
     {Object.entries(tweaks).map(([group, rows]) => (
       <React.Fragment key={group}>
         <div className="section-label">{t(group)}</div>
@@ -597,10 +620,10 @@ const TweaksScreen = ({ tweaks, onToggle, gameModeOn, gameBusy, onToggleGameMode
             <div className="tweak-row" key={tw.id}>
               <div className="tweak-text">
                 <h4 className="tweak-name">
-                  {tw.name}
+                  {t(tw.name)}
                   {tw.recommend && <span className="recommend">{t('Recommended')}</span>}
                 </h4>
-                <p className="tweak-desc">{tw.desc}</p>
+                <p className="tweak-desc">{t(tw.desc)}</p>
               </div>
               <button
                 className={'toggle' + (tw.on ? ' on' : '') + (tw.busy ? ' busy' : '')}
@@ -613,6 +636,33 @@ const TweaksScreen = ({ tweaks, onToggle, gameModeOn, gameBusy, onToggleGameMode
         </div>
       </React.Fragment>
     ))}
+
+    {/* Service optimization — reversible. Only services present on this machine
+        show up. "On" = reduced; off restores the Windows default. */}
+    {visibleServices.length > 0 && (
+      <>
+        <div className="section-label">{t('Services')}</div>
+        <div className="tweak-card">
+          {visibleServices.map(s => {
+            const st = serviceStatus[s.name] || {};
+            return (
+              <div className="tweak-row" key={s.name}>
+                <div className="tweak-text">
+                  <h4 className="tweak-name">{s.label}</h4>
+                  <p className="tweak-desc">{s.desc}</p>
+                </div>
+                <button
+                  className={'toggle' + (st.optimized ? ' on' : '') + (st.busy ? ' busy' : '')}
+                  aria-pressed={!!st.optimized}
+                  disabled={st.busy}
+                  onClick={() => onToggleService(s.name)}
+                />
+              </div>
+            );
+          })}
+        </div>
+      </>
+    )}
   </div>
   );
 };
@@ -883,7 +933,7 @@ const OptionsScreen = ({ version, updateState, onCheckUpdates, onInstallUpdate, 
     <div className="sys-card">
       <div className="sys-row">
         <span className="sys-key">Log Pose</span>
-        <span className="sys-val"><span>{t('Companion app for Only OS — a debloated Windows 11 build.')}</span></span>
+        <span className="sys-val"><span>{t('Windows app installer, debloat and tweaks — in one place.')}</span></span>
       </div>
       <div className="sys-row">
         <span className="sys-key">{t('Edition')}</span>
@@ -913,6 +963,8 @@ const App = () => {
   const [removedSet, setRemovedSet] = React.useState(() => new Set());       // debloated this session
   const [removingSet, setRemovingSet] = React.useState(() => new Set());     // removal in progress
   const [appxLoading, setAppxLoading] = React.useState(true);
+  const [serviceStatus, setServiceStatus] = React.useState({}); // name -> { exists, start, optimized, busy }
+  const [coreIso, setCoreIso] = React.useState(null);           // { hvci } once read
   const [tweaks, setTweaks] = React.useState(window.TWEAKS);
   const [cmdkOpen, setCmdkOpen] = React.useState(false);
 
@@ -925,34 +977,18 @@ const App = () => {
   const [appVersion, setAppVersion] = React.useState('0.1.0');
   const [updateState, setUpdateState] = React.useState('idle'); // idle | checking | available | uptodate
   const [behavior, setBehavior] = React.useState({ startup: false, tray: false, startMinimized: false });
-  const [editionLabel, setEditionLabel] = React.useState('Only OS');
+  const [editionLabel, setEditionLabel] = React.useState('Windows');
   const [sysRows, setSysRows] = React.useState(null);
   const [features, setFeatures] = React.useState(window.FEATURES);
 
   // ---- Backend bridge (real winget/dism) or null when running in a plain browser
   const bridge = (typeof window !== 'undefined' && window.onlyOS) || null;
 
-  // Wire update events + fetch system info (edition) from main process
+  // Wire update events.
   React.useEffect(() => {
     if (!bridge) return;
     bridge.onUpdateAvailable?.(() => setUpdateState('available'));
     bridge.onUpdateReady?.(() => setUpdateState('available'));
-    bridge.getSystemInfo?.().then((info) => {
-      if (info?.edition && info.edition !== 'unknown') {
-        setEditionLabel('Only OS');
-      }
-      // Features tab: use the real removal manifest when present.
-      if (info?.manifest) {
-        const m = info.manifest;
-        const rows = [];
-        const push = (arr, type) => (arr || []).forEach(it =>
-          rows.push({ name: it.Name || it.name, type, status: (it.Status || it.status) === 'removed' ? 'removed' : 'kept' }));
-        push(m.features, 'Feature');
-        push(m.capabilities, 'Capability');
-        push(m.langpacks, 'LangPack');
-        if (rows.length) setFeatures(rows);
-      }
-    }).catch(() => {});
 
     // Read real tweak states so toggles reflect the actual system.
     if (bridge.tweakStatus) {
@@ -973,9 +1009,9 @@ const App = () => {
     bridge.getHardware?.().then((res) => {
       if (!res?.ok) return;
       const h = res.hw;
+      if (h.osCaption) setEditionLabel(h.osCaption); // real Windows edition for the footer pill
       const rows = [
-        { key: 'Edition',       val: editionLabel,                          sub: `build ${h.osBuild}` },
-        { key: 'Windows Build', val: `${h.osCaption}`,                       sub: h.osArch },
+        { key: 'Windows',       val: `${h.osCaption}`,                       sub: `build ${h.osBuild} · ${h.osArch}` },
         { key: 'CPU',           val: h.cpuName,                              sub: `${h.cpuCores}C / ${h.cpuThreads}T` },
         { key: 'GPU',           val: h.gpuName,                              sub: '' },
         { key: 'RAM',           val: `${h.ramTotal} GB`,                     sub: `${h.ramUsed} / ${h.ramTotal} GB used`, usage: h.ramUsed / h.ramTotal },
@@ -1028,6 +1064,14 @@ const App = () => {
       if (res?.ok) setInstalledAppx(new Set(res.installed));
       setAppxLoading(false);
     }).catch(() => setAppxLoading(false));
+
+    // Live service start types + Core Isolation posture for the Tweaks tab.
+    bridge.listServices?.(window.SERVICES.map(s => s.name)).then((st) => {
+      if (st) setServiceStatus(st);
+    }).catch(() => {});
+    bridge.coreIsolation?.().then((r) => {
+      if (r?.ok) setCoreIso({ hvci: !!r.hvci });
+    }).catch(() => {});
   }, []); // eslint-disable-line
 
   // Check which installed apps have a winget update available.
@@ -1204,6 +1248,27 @@ const App = () => {
     }
     clearRemoving();
   };
+
+  // ---- Service optimization toggle (reversible; reboot to apply)
+  const onToggleService = async (name) => {
+    const cur = !!serviceStatus[name]?.optimized;
+    setServiceStatus(p => ({ ...p, [name]: { ...p[name], busy: true } }));
+    let res;
+    try { res = await bridge?.setService?.(name, !cur); } catch { res = { ok: false }; }
+    setServiceStatus(p => ({
+      ...p,
+      [name]: { ...p[name], busy: false, optimized: res?.ok ? !cur : p[name]?.optimized },
+    }));
+    if (res?.ok) {
+      setLog({ app: { name, id: 'service · ' + name }, done: true,
+        lines: [{ text: `${name}: ${!cur ? t('optimized') : t('restored to default')} — ${t('reboot to apply')}`, kind: 'ok' }] });
+    } else if (res?.error) {
+      setLog({ app: { name, id: 'service · ' + name }, done: true, ok: false,
+        lines: [{ text: `${name}: ${res.error}`, kind: 'err' }] });
+    }
+  };
+
+  const onOpenCoreIso = () => bridge?.openSettings?.('windowsdefender://coreisolation');
 
   // ---- Tweak toggle
   // Core: drive one tweak to an explicit value. Returns { changed, needsReboot }.
@@ -1412,7 +1477,7 @@ const App = () => {
   const pageMeta = {
     apps:     { title: t('Apps'),     desc: t('Curated winget catalogue — install in one click, no bloat.') },
     features: { title: t('Features'), desc: t('Remove pre-installed Windows apps you don\'t use.') },
-    system:   { title: t('System'),   desc: t('Hardware, edition, and runtime info reported to the manifest.') },
+    system:   { title: t('System'),   desc: t('Hardware, startup programs, and maintenance for this Windows install.') },
     tweaks:   { title: t('Tweaks'),   desc: t('Post-install performance and privacy toggles.') },
     options:  { title: t('Options'),  desc: t('App preferences, updates and behavior.') },
   }[route];
@@ -1460,7 +1525,7 @@ const App = () => {
               {route === 'apps'     && <AppsScreen cat={cat} installStates={installStates} onInstall={onInstall} onUninstall={onUninstall} upgradable={upgradable} onUpgrade={onUpgrade} />}
               {route === 'features' && <FeaturesScreen features={features} installedAppx={installedAppx} onRemove={onRemoveAppx} removedSet={removedSet} removingSet={removingSet} loading={appxLoading} />}
               {route === 'system'   && <SystemScreen onAction={onAction} rows={sysRows} />}
-              {route === 'tweaks'   && <TweaksScreen tweaks={tweaks} onToggle={onToggle} gameModeOn={gameModeOn} gameBusy={gameBusy} onToggleGameMode={onToggleGameMode} />}
+              {route === 'tweaks'   && <TweaksScreen tweaks={tweaks} onToggle={onToggle} gameModeOn={gameModeOn} gameBusy={gameBusy} onToggleGameMode={onToggleGameMode} services={window.SERVICES} serviceStatus={serviceStatus} onToggleService={onToggleService} coreIso={coreIso} onOpenCoreIso={onOpenCoreIso} />}
               {route === 'options'  && <OptionsScreen
                 version={appVersion} updateState={updateState}
                 onCheckUpdates={onCheckUpdates} onInstallUpdate={onInstallUpdate}

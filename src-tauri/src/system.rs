@@ -1,33 +1,10 @@
-// system_info (edition/manifest/platform) and hardware (real specs for the
-// System tab). Hardware is a faithful port of the old PowerShell CIM query —
-// it already returns exactly the fields App.jsx builds its sysRows from.
+// hardware (real specs for the System tab) — a faithful port of the old
+// PowerShell CIM query; returns exactly the fields App.jsx builds its sysRows
+// from, including the real Windows edition (osCaption).
 
 use serde_json::{json, Value};
 
 use crate::util;
-
-const MANIFEST_PATH: &str = r"C:\Program Files\OnlyOS\removed-features.json";
-const EDITION_PATH: &str = r"C:\Program Files\OnlyOS\edition.txt";
-
-#[tauri::command]
-pub fn system_info() -> Value {
-    let edition = std::fs::read_to_string(EDITION_PATH)
-        .map(|s| s.trim().to_string())
-        .unwrap_or_else(|_| "unknown".to_string());
-
-    let manifest = std::fs::read_to_string(MANIFEST_PATH)
-        .ok()
-        .and_then(|s| serde_json::from_str::<Value>(&s).ok())
-        .unwrap_or(Value::Null);
-
-    json!({
-        "edition": edition,
-        "manifest": manifest,
-        "platform": "win32",
-        "arch": std::env::consts::ARCH,
-        "isDev": cfg!(debug_assertions),
-    })
-}
 
 #[tauri::command]
 pub fn hardware() -> Value {

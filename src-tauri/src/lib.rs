@@ -2,6 +2,7 @@ mod app_ui;
 mod appx;
 mod download;
 mod ops;
+mod services;
 mod startup;
 mod system;
 mod tweaks;
@@ -68,7 +69,6 @@ pub fn run() {
             }
         })
         .invoke_handler(tauri::generate_handler![
-            system::system_info,
             system::hardware,
             winget::winget_install,
             winget::winget_uninstall,
@@ -86,6 +86,10 @@ pub fn run() {
             tweaks::tweak_status,
             startup::startup_list,
             startup::startup_set,
+            services::service_list,
+            services::service_set,
+            services::core_isolation_status,
+            services::open_settings,
             app_ui::settings_get,
             app_ui::settings_set,
             app_ui::install_update,

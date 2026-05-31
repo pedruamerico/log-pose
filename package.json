@@ -1,7 +1,7 @@
 {
   "name": "log-pose",
   "version": "0.2.0",
-  "description": "Log Pose - companion app for Only OS (app installer, debloat, system, tweaks)",
+  "description": "Log Pose - Windows app installer, debloat, system info and tweaks",
   "scripts": {
     "vite": "vite",
     "build:renderer": "vite build",

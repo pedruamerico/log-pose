@@ -37,7 +37,6 @@ const appWindow = getCurrentWindow();
 
 window.onlyOS = {
     // --- system info ---
-    getSystemInfo: () => safeInvoke('system_info', undefined, {}),
     getHardware: () => safeInvoke('hardware', undefined, { ok: false }),
 
     // --- winget install / uninstall / wipe / upgrade ---
@@ -82,6 +81,14 @@ window.onlyOS = {
     setTweak: (id, enabled) =>
         safeInvoke('tweak_set', { id, enabled }, { ok: false }),
     tweakStatus: (ids) => safeInvoke('tweak_status', { ids }, {}),
+
+    // --- service optimization (reversible) ---
+    listServices: (names) => safeInvoke('service_list', { names }, {}),
+    setService: (name, optimized) => safeInvoke('service_set', { name, optimized }, { ok: false }),
+
+    // --- Core Isolation / Memory Integrity (detect + open settings) ---
+    coreIsolation: () => safeInvoke('core_isolation_status', undefined, { ok: false }),
+    openSettings: (uri) => safeInvoke('open_settings', { uri }, { ok: false }),
 
     // --- startup programs ---
     listStartup: () => safeInvoke('startup_list', undefined, { ok: false, items: [] }),

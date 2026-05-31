@@ -21,15 +21,14 @@ const PT = {
   'Options': 'Opções',
   'MANAGE': 'GERENCIAR',
   'Search everything…': 'Buscar tudo…',
-  'Only OS': 'Only OS',
 
   // page descriptions
   'Curated winget catalogue — install in one click, no bloat.':
     'Catálogo curado do winget — instale em um clique, sem bloat.',
   'Remove pre-installed Windows apps you don\'t use.':
     'Remova apps pré-instalados do Windows que você não usa.',
-  'Hardware, edition, and runtime info reported to the manifest.':
-    'Hardware, edição e informações de runtime reportadas ao manifest.',
+  'Hardware, startup programs, and maintenance for this Windows install.':
+    'Hardware, programas de inicialização e manutenção deste Windows.',
   'Post-install performance and privacy toggles.':
     'Ajustes de desempenho e privacidade pós-instalação.',
   'App preferences, updates and behavior.':
@@ -122,6 +121,42 @@ const PT = {
   'One switch for max FPS: Ultimate power plan, GPU scheduling on, Game DVR & VBS off. Reverts to balanced & secure when off. VBS change needs a restart.':
     'Um botão para FPS máximo: plano Ultimate Performance, GPU scheduling ligado, Game DVR e VBS desligados. Volta ao modo balanceado e seguro quando off. Mudar o VBS exige reiniciar.',
 
+  // tweak names + descriptions (technical product names kept in English)
+  'UAC prompts': 'Prompts do UAC',
+  'User Account Control prompts when elevating. Off = "never notify" (no pop-ups). Does not affect Store apps.':
+    'Avisos do Controle de Conta de Usuário ao elevar. Desligado = "nunca notificar" (sem pop-ups). Não afeta apps da Store.',
+  'Automatic Windows Update': 'Windows Update automático',
+  'Auto-downloads updates/drivers, no forced reboot. Turning it off returns to manual mode (you update when you want).':
+    'Baixa updates/drivers automaticamente, sem reboot forçado. Desligar volta ao modo manual (você atualiza quando quiser).',
+  'Virtualization-Based Security (VBS)': 'Virtualization-Based Security (VBS)',
+  'Kernel memory-integrity protection. Off gives ~5-8% more FPS (gaming mode) and does NOT risk a Vanguard ban (Riot allows it via VAN 9005), but lowers Windows kernel security. Requires reboot.':
+    'Proteção de integridade de memória do kernel. Desligada dá ~5-8% mais FPS (modo gaming) e NÃO arrisca ban do Vanguard (a Riot permite via VAN 9005), mas reduz a segurança do kernel do Windows. Requer reiniciar.',
+  'Ultimate Performance power plan': 'Plano de energia Ultimate Performance',
+  'Unlocks the hidden high-performance power scheme.':
+    'Libera o esquema de energia de alto desempenho escondido.',
+  'Hardware-accelerated GPU scheduling (HAGS)': 'Agendamento de GPU acelerado por hardware (HAGS)',
+  'Lets the GPU manage its own memory. Requires reboot.':
+    'Deixa a GPU gerenciar a própria memória. Requer reiniciar.',
+  'Game DVR background recording': 'Gravação em segundo plano do Game DVR',
+  'Background gameplay capture. Off frees resources for games.':
+    'Captura de gameplay em segundo plano. Desligado libera recursos pros jogos.',
+  'Linux & containers (WSL2)': 'Linux e containers (WSL2)',
+  'Enables WSL2 + Hyper-V platform. Required for Docker Desktop / Podman / Linux dev. Off keeps Hyper-V dormant for max gaming FPS. Requires reboot.':
+    'Habilita WSL2 + plataforma Hyper-V. Necessário para Docker Desktop / Podman / dev Linux. Desligado mantém o Hyper-V dormente para FPS máximo. Requer reiniciar.',
+
+  // services + core isolation
+  'Services': 'Serviços',
+  'Memory Integrity (Core Isolation)': 'Integridade de Memória (Core Isolation)',
+  'On': 'Ligada',
+  'On — the Valorant/Vanguard requirement is met.':
+    'Ligada — o requisito do Valorant/Vanguard está atendido.',
+  'Off — Valorant (Vanguard) requires it on. Open Windows settings to enable it; Windows checks driver compatibility first.':
+    'Desligada — o Valorant (Vanguard) exige ligada. Abra as Configurações do Windows para ativar; o Windows checa compatibilidade de driver antes.',
+  'Open settings': 'Abrir Configurações',
+  'optimized': 'otimizado',
+  'restored to default': 'revertido ao default',
+  'reboot to apply': 'reinicie para aplicar',
+
   // options
   'Updates': 'Atualizações',
   'Behavior': 'Comportamento',
@@ -140,8 +175,8 @@ const PT = {
   'Start minimized to tray': 'Iniciar minimizado na bandeja',
   'Launch hidden in the tray (enables minimize to tray).':
     'Abrir escondido na bandeja (ativa minimizar para a bandeja).',
-  'Companion app for Only OS — a debloated Windows 11 build.':
-    'App companheiro do Only OS — um Windows 11 debloated.',
+  'Windows app installer, debloat and tweaks — in one place.':
+    'Instalador de apps, debloat e tweaks do Windows — num lugar só.',
   'Edition': 'Edição',
   'Interface language. Technical terms stay in English.':
     'Idioma da interface. Termos técnicos permanecem em inglês.',

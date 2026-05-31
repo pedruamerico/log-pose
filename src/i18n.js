@@ -157,6 +157,27 @@ const PT = {
   'restored to default': 'revertido ao default',
   'reboot to apply': 'reinicie para aplicar',
 
+  // service labels + descriptions (service names kept in English)
+  'Print Spooler': 'Spooler de impressão',
+  'Telemetry (DiagTrack)': 'Telemetria (DiagTrack)',
+  'WAP Push (telemetry)': 'WAP Push (telemetria)',
+  'Preloads apps into RAM. Reducing it frees memory; little effect on SSDs.':
+    'Pré-carrega apps na RAM. Reduzir libera memória; pouco efeito em SSD.',
+  'Search indexer. Manual cuts background I/O (search still works).':
+    'Indexador de busca. Manual reduz I/O em segundo plano (a busca ainda funciona).',
+  'Print queue. Manual = starts when you print. Reduce if you do not print.':
+    'Fila de impressão. Manual = liga ao imprimir. Reduz se você não imprime.',
+  'Per-app network usage tracking. Off frees a little RAM (loses the per-app graph in Task Manager).':
+    'Coleta uso de rede por app. Desligar libera um pouco de RAM (perde o gráfico por app no Gerenciador).',
+  'Fax service. Disabling affects nothing on a modern PC.':
+    'Serviço de fax. Desligar não afeta nada num PC moderno.',
+  'GPU power telemetry driver. Disabling reduces overhead.':
+    'Driver de telemetria de energia da GPU. Desligar reduz overhead.',
+  'Microsoft diagnostics/telemetry collection. Disabling is a privacy win.':
+    'Coleta de diagnósticos/telemetria da Microsoft. Desligar é um ganho de privacidade.',
+  'Telemetry message routing. Safe to disable.':
+    'Roteamento de mensagens de telemetria. Desligar é seguro.',
+
   // options
   'Updates': 'Atualizações',
   'Behavior': 'Comportamento',

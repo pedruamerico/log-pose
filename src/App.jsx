@@ -648,8 +648,8 @@ const TweaksScreen = ({ tweaks, onToggle, gameModeOn, gameBusy, onToggleGameMode
             return (
               <div className="tweak-row" key={s.name}>
                 <div className="tweak-text">
-                  <h4 className="tweak-name">{s.label}</h4>
-                  <p className="tweak-desc">{s.desc}</p>
+                  <h4 className="tweak-name">{t(s.label)}</h4>
+                  <p className="tweak-desc">{t(s.desc)}</p>
                 </div>
                 <button
                   className={'toggle' + (st.optimized ? ' on' : '') + (st.busy ? ' busy' : '')}

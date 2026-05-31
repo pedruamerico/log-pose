@@ -116,12 +116,12 @@ window.TWEAKS = {
 // hidden. Labels in pt-BR, service names in English (UI convention). Requires a
 // reboot to fully take effect. Texts go through t() — see i18n.js.
 window.SERVICES = [
-  { name: 'SysMain',          label: 'SysMain (Superfetch)',   desc: 'Pré-carrega apps na RAM. Reduzir libera memória; pouco efeito em SSD.' },
-  { name: 'WSearch',          label: 'Windows Search',         desc: 'Indexador de busca. Manual reduz I/O em segundo plano (a busca ainda funciona).' },
-  { name: 'Spooler',          label: 'Spooler de impressão',   desc: 'Fila de impressão. Manual = liga ao imprimir. Reduz se você não imprime.' },
-  { name: 'Ndu',              label: 'Network Data Usage (Ndu)', desc: 'Coleta uso de rede por app. Desligar libera um pouco de RAM (perde o gráfico por app no Gerenciador).' },
-  { name: 'Fax',              label: 'Fax',                    desc: 'Serviço de fax. Desligar não afeta nada num PC moderno.' },
-  { name: 'GpuEnergyDrv',     label: 'GPU Energy Driver',      desc: 'Driver de telemetria de energia da GPU. Desligar reduz overhead.' },
-  { name: 'DiagTrack',        label: 'Telemetria (DiagTrack)', desc: 'Coleta de diagnósticos/telemetria da Microsoft. Desligar é um ganho de privacidade.' },
-  { name: 'dmwappushservice', label: 'WAP Push (telemetria)',  desc: 'Roteamento de mensagens de telemetria. Desligar é seguro.' },
+  { name: 'SysMain',          label: 'SysMain (Superfetch)',     desc: 'Preloads apps into RAM. Reducing it frees memory; little effect on SSDs.' },
+  { name: 'WSearch',          label: 'Windows Search',           desc: 'Search indexer. Manual cuts background I/O (search still works).' },
+  { name: 'Spooler',          label: 'Print Spooler',            desc: 'Print queue. Manual = starts when you print. Reduce if you do not print.' },
+  { name: 'Ndu',              label: 'Network Data Usage (Ndu)', desc: 'Per-app network usage tracking. Off frees a little RAM (loses the per-app graph in Task Manager).' },
+  { name: 'Fax',              label: 'Fax',                      desc: 'Fax service. Disabling affects nothing on a modern PC.' },
+  { name: 'GpuEnergyDrv',     label: 'GPU Energy Driver',        desc: 'GPU power telemetry driver. Disabling reduces overhead.' },
+  { name: 'DiagTrack',        label: 'Telemetry (DiagTrack)',    desc: 'Microsoft diagnostics/telemetry collection. Disabling is a privacy win.' },
+  { name: 'dmwappushservice', label: 'WAP Push (telemetry)',     desc: 'Telemetry message routing. Safe to disable.' },
 ];

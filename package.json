@@ -1,6 +1,6 @@
 {
   "name": "log-pose",
-  "version": "0.3.0",
+  "version": "1.0.0",
   "description": "Log Pose - Windows app installer, debloat, system info and tweaks",
   "scripts": {
     "vite": "vite",

@@ -1,6 +1,6 @@
 [package]
 name = "log-pose"
-version = "0.3.0"
+version = "1.0.0"
 description = "Log Pose - Windows app installer, debloat and tweaks"
 authors = ["pedronly"]
 edition = "2021"

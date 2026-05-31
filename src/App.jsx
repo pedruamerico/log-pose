@@ -974,7 +974,7 @@ const App = () => {
   const t = React.useMemo(() => makeT(lang), [lang]);
 
   // ---- Options state
-  const [appVersion, setAppVersion] = React.useState('0.1.0');
+  const [appVersion, setAppVersion] = React.useState('0.3.0');
   const [updateState, setUpdateState] = React.useState('idle'); // idle | checking | available | uptodate
   const [behavior, setBehavior] = React.useState({ startup: false, tray: false, startMinimized: false });
   const [editionLabel, setEditionLabel] = React.useState('Windows');

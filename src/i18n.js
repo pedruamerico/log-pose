@@ -26,8 +26,8 @@ const PT = {
   // page descriptions
   'Curated winget catalogue — install in one click, no bloat.':
     'Catálogo curado do winget — instale em um clique, sem bloat.',
-  'Windows components removed during install. Restore any you need back.':
-    'Componentes do Windows removidos na instalação. Restaure os que precisar.',
+  'Remove pre-installed Windows apps you don\'t use.':
+    'Remova apps pré-instalados do Windows que você não usa.',
   'Hardware, edition, and runtime info reported to the manifest.':
     'Hardware, edição e informações de runtime reportadas ao manifest.',
   'Post-install performance and privacy toggles.':
@@ -155,6 +155,10 @@ const PT = {
   'Enable:': 'Ligar:',
   'Disable:': 'Desligar:',
   'installed': 'instalado',
+  'removed': 'removidos',
+  'Remove': 'Remover',
+  'Removing…': 'Removendo…',
+  'Reading installed apps…': 'Lendo apps instalados…',
   'installing…': 'instalando…',
   'navigate': 'navegar',
   'select': 'selecionar',

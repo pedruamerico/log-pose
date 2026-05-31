@@ -1,63 +1,69 @@
 # Log Pose
 
 Post-format Windows app installer. You reinstall the OS, run Log Pose, and the
-programs you always end up needing are queued and installed in one place — fast.
+programs you always end up needing are installed in one place — fast. Plus
+debloat, performance/privacy tweaks, and a startup manager.
 
-Companion app for the **Only OS** Windows build, but it runs on any normal
-Windows 11 install.
+Standalone app — runs on any normal Windows 11 install. The **Only OS** playbook
+can optionally download it as a companion, but Log Pose doesn't depend on it.
 
 ## Stack
 
-Electron 33 · Vite 6 · React 18. No backend service — the renderer talks to the
-main process over a context-isolated IPC bridge (`window.onlyOS.*`).
+Tauri 2 · Vite 6 · React 18. The Rust backend (`src-tauri/`) drives winget,
+DISM, the registry and powercfg; the React renderer talks to it over a
+context-isolated bridge (`window.onlyOS.*`, see `src/bridge.js`) backed by Tauri
+`invoke()` + `Channel`. The UI runs in the system WebView2 (already on Win11) —
+no bundled browser, so the installer is ~5 MB.
 
 ## What it does
 
 - **Apps** — one-click installs via `winget` (curated catalogue) plus a few apps
   not on winget (NVIDIA App, AMD Adrenalin, WhatsApp, DirectX) downloaded straight
-  from the vendor. FIFO queue, live stdout/stderr log, install / uninstall /
-  upgrade / full wipe (uninstall + leftover folders).
+  from the vendor. Live install/uninstall/upgrade/full-wipe with a streaming log.
+- **Features** — live debloat: detects which curated AppX packages are actually
+  installed on this machine and removes the ones you don't want (Remove-AppxPackage
+  for all users + deprovision).
 - **Tweaks** — post-install performance/privacy toggles wired to real registry /
-  powercfg / DISM operations, plus a one-switch Game Mode.
+  powercfg / DISM operations (HAGS, Game DVR, VBS, UAC, Windows Update, WSL, …).
 - **System** — real hardware info, a startup-programs manager (reversible, same
   store Task Manager uses), and maintenance actions (clear temp, flush DNS,
   SFC + DISM repair, restore point).
-- **Features** — lists Windows components removed by the Only OS image and lets
-  you restore any back via DISM. (No-op on a normal Windows install.)
-- Command palette (`Ctrl+K`), system tray, pt-BR / en, auto-update.
+- Command palette (`Ctrl+K`), system tray, pt-BR / en, signed auto-update.
 
 ## Dev
 
+Prereqs: Rust (`rustup`, MSVC toolchain) and the Windows WebView2 runtime.
+
 ```powershell
 npm install
-npm run dev   # vite + electron (dev-launch)
+npm run dev      # tauri dev — vite + the Rust app, hot-reloads both
 ```
 
-> Gotcha: if you see `Cannot read properties of undefined (reading 'whenReady')`,
-> the env var `ELECTRON_RUN_AS_NODE=1` is set in your shell — electron.exe is
-> running as plain Node. Clear it: `$env:ELECTRON_RUN_AS_NODE=$null`.
+Dev builds run un-elevated (`asInvoker`), so registry/DISM tweaks will no-op —
+test those from a packaged (elevated) build.
 
 ## Build
 
 ```powershell
-npm run build            # NSIS installer + portable -> dist-app/
-npm run build:portable   # portable only
+npm run build    # tauri build — NSIS installer -> src-tauri/target/release/bundle/nsis/
 ```
 
-Artifacts: `LogPose-Setup.exe`, `LogPose-portable.exe`.
+Release builds embed a `requireAdministrator` manifest (the app must be elevated
+for the tweaks to work). See [RELEASE.md](RELEASE.md) for signing + publishing.
 
 ## Layout
 
-- `electron/main.js` — main process. All IPC handlers (winget, DISM, registry
-  tweaks, maintenance, startup, hardware, auto-update).
-- `electron/preload.js` — context-isolated bridge. Renderer only sees
-  `window.onlyOS.*`.
-- `src/App.jsx` — renderer (React). `src/data.js` — app catalogue + tweak
-  definitions. `src/i18n.js` — pt-BR / en strings.
+- `src-tauri/src/` — Rust backend, one module per area: `winget`, `tweaks`,
+  `appx` (debloat), `system`, `startup`, `ops` (wipe/maintenance/dism),
+  `download`, `app_ui` (tray/settings/updater), `util` (process streaming).
+- `src-tauri/tauri.conf.json` — window, bundle, updater config. `build.rs` —
+  embeds the elevation manifest.
+- `src/App.jsx` — renderer (React). `src/bridge.js` — the `window.onlyOS.*`
+  shim over Tauri. `src/data.js` — app catalogue + debloat + tweak definitions.
+  `src/i18n.js` — pt-BR / en strings.
 
-Security model: `contextIsolation` on, `nodeIntegration` off, `sandbox` off (the
-main process needs `child_process` to drive winget/DISM). The renderer has no
-direct Node access.
+Security model: the renderer has no direct Node/OS access; every privileged
+action goes through a named, input-validated Rust command.
 
 ## License
 

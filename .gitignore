@@ -3,3 +3,8 @@ dist/
 *.log
 .DS_Store
 dist-app/
+
+# Rust / Tauri build output
+src-tauri/target/
+# Tauri-generated permission schemas (derived at build time)
+src-tauri/gen/

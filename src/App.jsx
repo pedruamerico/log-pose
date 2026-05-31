@@ -341,26 +341,37 @@ const AppsScreen = ({ cat, installStates, onInstall, onUninstall, upgradable, on
 };
 
 // ============ FEATURES SCREEN ============
-const FeaturesScreen = ({ features, onRestore, restoredSet }) => {
+// Debloat tab: each catalog entry's present/removed state is read live from
+// the machine (installedAppx). Present packages can be removed; removed ones
+// just show their state. No fiction — reflects what's actually installed.
+const FeaturesScreen = ({ features, installedAppx, onRemove, removedSet, removingSet, loading }) => {
   const t = useT();
   const [filter, setFilter] = React.useState('all');
   const [fquery, setFquery] = React.useState('');
   const q = fquery.trim().toLowerCase();
-  const filterLabel = { all: 'All', removed: 'Removed', kept: 'Kept' };
+  const isPresent = (f) => installedAppx.has(f.name) && !removedSet.has(f.name);
+  const filterLabel = { all: 'All', present: 'Installed', removed: 'Removed' };
+
   const filtered = features.filter(f => {
-    if (q && !f.name.toLowerCase().includes(q) && !f.type.toLowerCase().includes(q)) return false;
-    if (filter === 'removed') return f.status === 'removed' && !restoredSet.has(f.name);
-    if (filter === 'kept')    return f.status === 'kept' || restoredSet.has(f.name);
+    const hay = (f.label || '') + ' ' + f.name;
+    if (q && !hay.toLowerCase().includes(q)) return false;
+    if (filter === 'present') return isPresent(f);
+    if (filter === 'removed') return !isPresent(f);
     return true;
   });
+  const presentCount = features.filter(isPresent).length;
 
   return (
     <div className="fade-in">
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, gap: 12 }}>
         <div style={{ fontSize: 12.5, color: 'var(--text-mute)' }}>
-          {t('Source:')} <span style={{ fontFamily: 'var(--mono)', color: 'var(--text)' }}>only-os.v24h2.3007.json</span>
-          <span style={{ margin: '0 8px', color: 'var(--text-dim)' }}>·</span>
-          {features.length} {t('entries')}
+          {loading ? t('Reading installed apps…') : (
+            <>
+              <span style={{ color: 'var(--text)' }}>{presentCount}</span> {t('installed')}
+              <span style={{ margin: '0 8px', color: 'var(--text-dim)' }}>·</span>
+              {features.length - presentCount} {t('removed')}
+            </>
+          )}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <div className="search" style={{ width: 200 }}>
@@ -368,7 +379,7 @@ const FeaturesScreen = ({ features, onRestore, restoredSet }) => {
             <input value={fquery} onChange={e => setFquery(e.target.value)} placeholder={t('Filter features…')} />
           </div>
           <div className="feat-filters">
-            {['all', 'removed', 'kept'].map(k => (
+            {['all', 'present', 'removed'].map(k => (
               <button key={k} className={'feat-filter' + (filter === k ? ' active' : '')} onClick={() => setFilter(k)}>
                 {t(filterLabel[k])}
               </button>
@@ -385,27 +396,28 @@ const FeaturesScreen = ({ features, onRestore, restoredSet }) => {
           <span style={{ textAlign: 'right' }}>{t('Action')}</span>
         </div>
         {filtered.map(f => {
-          const restored = restoredSet.has(f.name);
-          const effective = restored ? 'kept' : f.status;
+          const present = isPresent(f);
+          const removing = removingSet.has(f.name);
           return (
             <div className="list-row" key={f.name}>
-              <span className="feat-name">{f.name}</span>
+              <span className="feat-name" style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
+                <span>{f.label || f.name}</span>
+                <span style={{ fontSize: 11, color: 'var(--text-dim)', fontFamily: 'var(--mono)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</span>
+              </span>
               <span style={{ fontSize: 12, color: 'var(--text-mute)' }}>{f.type}</span>
               <span>
-                {effective === 'removed' ? (
-                  <span className="status-chip status-removed"><span className="d" />{t('Removed')}</span>
+                {present ? (
+                  <span className="status-chip status-kept"><span className="d" />{t('Installed')}</span>
                 ) : (
-                  <span className="status-chip status-kept"><span className="d" />{t('Kept')}</span>
+                  <span className="status-chip status-removed"><span className="d" />{t('Removed')}</span>
                 )}
               </span>
               <span style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                {effective === 'removed' ? (
-                  <button className="btn btn-sm" onClick={() => onRestore(f)}>
-                    <Icon name="restore" size={12} />
-                    {t('Restore')}
+                {present ? (
+                  <button className="btn btn-sm" disabled={removing} onClick={() => onRemove(f)}>
+                    <Icon name="trash" size={12} />
+                    {removing ? t('Removing…') : t('Remove')}
                   </button>
-                ) : restored ? (
-                  <span style={{ fontSize: 11.5, color: 'var(--text-dim)', fontStyle: 'italic' }}>{t('queued for restore')}</span>
                 ) : (
                   <span style={{ fontSize: 11.5, color: 'var(--text-dim)' }}>—</span>
                 )}
@@ -499,7 +511,7 @@ const SystemScreen = ({ onAction, rows }) => {
   return (
   <div className="fade-in">
     <div className="sys-card">
-      {(rows && rows.length ? rows : window.SYSTEM).map(row => (
+      {(rows || []).map(row => (
         <div className="sys-row" key={row.key}>
           <span className="sys-key">{row.key}</span>
           <span className="sys-val">
@@ -696,246 +708,8 @@ const DownloadCenter = ({ items, onClear }) => {
   );
 };
 
-// ============ METRICS SCREEN ============
-const Sparkline = ({ data, max = 100, color, height = 40, gradId }) => {
-  const w = 100, h = height;
-  if (!data || data.length < 2) return null;
-  const padY = h * 0.08;
-  const pts = data.map((v, i) => [
-    (i / (data.length - 1)) * w,
-    h - Math.min(Math.max(v, 0) / max, 1) * (h - padY * 2) - padY,
-  ]);
-  const path = pts.map((p, i) => (i === 0 ? 'M' : 'L') + p[0].toFixed(2) + ',' + p[1].toFixed(2)).join(' ');
-  const area = path + ` L ${w},${h} L 0,${h} Z`;
-  return (
-    <svg viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" style={{ width: '100%', height: '100%', display: 'block' }}>
-      <defs>
-        <linearGradient id={gradId} x1="0" x2="0" y1="0" y2="1">
-          <stop offset="0%" stopColor={color} stopOpacity="0.28" />
-          <stop offset="100%" stopColor={color} stopOpacity="0" />
-        </linearGradient>
-      </defs>
-      <path d={area} fill={`url(#${gradId})`} />
-      <path d={path} fill="none" stroke={color} strokeWidth="1.4" vectorEffect="non-scaling-stroke" strokeLinejoin="round" strokeLinecap="round" />
-    </svg>
-  );
-};
-
-const KpiCard = ({ label, value, unit, sub, data, max, color, gradId }) => (
-  <div className="kpi-card">
-    <div className="kpi-label">
-      <span>{label}</span>
-      <span className="live" />
-    </div>
-    <div className="kpi-value">
-      <span className="kpi-num">{value}</span>
-      <span className="kpi-unit">{unit}</span>
-    </div>
-    {sub && <div className="kpi-sub">{sub}</div>}
-    <div className="kpi-spark"><Sparkline data={data} max={max} color={color} gradId={gradId} /></div>
-  </div>
-);
-
-const HistoryChart = ({ series, height = 160 }) => {
-  const w = 600, h = height;
-  return (
-    <div className="chart-svg-wrap" style={{ height }}>
-      <svg className="chart-svg" viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none">
-        <defs>
-          {series.map((s, idx) => (
-            <linearGradient key={s.name} id={`hist-${idx}`} x1="0" x2="0" y1="0" y2="1">
-              <stop offset="0%" stopColor={s.color} stopOpacity="0.18" />
-              <stop offset="100%" stopColor={s.color} stopOpacity="0" />
-            </linearGradient>
-          ))}
-        </defs>
-        {[0, 25, 50, 75, 100].map(p => {
-          const y = h - (p / 100) * h;
-          return <line key={p} x1="0" x2={w} y1={y} y2={y} stroke="var(--border)" strokeWidth="1" strokeDasharray={p === 0 || p === 100 ? '0' : '2 3'} />;
-        })}
-        {series.map((s, idx) => {
-          if (!s.data || s.data.length < 2) return null;
-          const pts = s.data.map((v, i) => [(i / (s.data.length - 1)) * w, h - Math.min(v / 100, 1) * h]);
-          const path = pts.map((p, i) => (i === 0 ? 'M' : 'L') + p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' ');
-          return (
-            <g key={s.name}>
-              <path d={path + ` L ${w},${h} L 0,${h} Z`} fill={`url(#hist-${idx})`} />
-              <path d={path} fill="none" stroke={s.color} strokeWidth="1.4" vectorEffect="non-scaling-stroke" strokeLinejoin="round" strokeLinecap="round" />
-            </g>
-          );
-        })}
-      </svg>
-      <div className="chart-yaxis">
-        <span>100</span><span>75</span><span>50</span><span>25</span><span>0</span>
-      </div>
-    </div>
-  );
-};
-
-const drift = (prev, baseline, spread, lo = 0, hi = 100) => {
-  const pull = (baseline - prev) * 0.04;
-  let v = prev + pull + (Math.random() - 0.5) * spread;
-  return Math.max(lo, Math.min(hi, v));
-};
-const spikeMaybe = (v, chance, size) => Math.random() < chance ? Math.min(100, v + size + Math.random() * 15) : v;
-
-const N = 60; // 60 samples (~60s window)
-const seedSeries = (baseline, spread) => {
-  const arr = [baseline];
-  for (let i = 1; i < N; i++) arr.push(drift(arr[i - 1], baseline, spread));
-  return arr;
-};
-
-const MetricsScreen = () => {
-  const [tick, setTick] = React.useState(() => ({
-    cpu: seedSeries(14, 6),
-    ram: seedSeries(57, 1.2),
-    gpu: seedSeries(11, 5),
-    netDown: seedSeries(1.8, 1.2),
-    netUp:   seedSeries(0.4, 0.4),
-    procs: window.PROCESSES.map(p => ({ ...p })),
-    secs: 0,
-  }));
-
-  React.useEffect(() => {
-    const id = setInterval(() => {
-      setTick(prev => {
-        const lastCpu = prev.cpu[N - 1];
-        const lastRam = prev.ram[N - 1];
-        const lastGpu = prev.gpu[N - 1];
-        const lastDn  = prev.netDown[N - 1];
-        const lastUp  = prev.netUp[N - 1];
-        const nextCpu = spikeMaybe(drift(lastCpu, 16, 5), 0.06, 25);
-        const nextRam = drift(lastRam, 57.5, 0.6, 50, 70);
-        const nextGpu = spikeMaybe(drift(lastGpu, 12, 4), 0.05, 35);
-        const nextDn  = spikeMaybe(drift(lastDn, 2, 1.4, 0, 20), 0.08, 6);
-        const nextUp  = drift(lastUp, 0.5, 0.4, 0, 8);
-        return {
-          cpu: [...prev.cpu.slice(1), nextCpu],
-          ram: [...prev.ram.slice(1), nextRam],
-          gpu: [...prev.gpu.slice(1), nextGpu],
-          netDown: [...prev.netDown.slice(1), nextDn],
-          netUp:   [...prev.netUp.slice(1), nextUp],
-          procs: prev.procs.map(p => ({
-            ...p,
-            cpu: Math.max(0, p.cpu + (Math.random() - 0.5) * 0.6),
-            ram: Math.max(20, p.ram + (Math.random() - 0.5) * 8),
-          })),
-          secs: prev.secs + 1,
-        };
-      });
-    }, 1000);
-    return () => clearInterval(id);
-  }, []);
-
-  const cur = (a) => a[a.length - 1];
-  const ramGb = (cur(tick.ram) / 100 * 32).toFixed(1);
-
-  const totalDisk = window.DISK_SEGMENTS.reduce((s, d) => s + d.gb, 0);
-  const sortedProcs = [...tick.procs].sort((a, b) => b.cpu - a.cpu);
-  const maxProcCpu = Math.max(...sortedProcs.map(p => p.cpu), 1);
-
-  return (
-    <div className="fade-in">
-      <div className="metrics-kpis">
-        <KpiCard label="CPU"      value={cur(tick.cpu).toFixed(1)} unit="%" sub="8C / 16T · Ryzen 7" data={tick.cpu}     max={100} color="#a855f7" gradId="g-cpu" />
-        <KpiCard label="RAM"      value={ramGb}                    unit={'GB / 32'} sub={cur(tick.ram).toFixed(1) + '% used'} data={tick.ram} max={100} color="#60a5fa" gradId="g-ram" />
-        <KpiCard label="GPU"      value={cur(tick.gpu).toFixed(0)} unit="%" sub="RTX 4070 · 12 GB" data={tick.gpu}     max={100} color="#f472b6" gradId="g-gpu" />
-        <KpiCard label="Network"  value={cur(tick.netDown).toFixed(1)} unit="↓ MB/s" sub={'↑ ' + cur(tick.netUp).toFixed(2) + ' MB/s · ethernet'} data={tick.netDown} max={20}  color="#4ade80" gradId="g-net" />
-      </div>
-
-      <div className="chart-card">
-        <div className="chart-head">
-          <span className="chart-title">CPU &amp; RAM · last 60 seconds</span>
-          <div className="chart-legend">
-            <span><span className="d" style={{ background: '#a855f7' }} />CPU</span>
-            <span><span className="d" style={{ background: '#60a5fa' }} />RAM</span>
-            <span><span className="d" style={{ background: '#f472b6' }} />GPU</span>
-          </div>
-        </div>
-        <HistoryChart
-          series={[
-            { name: 'CPU', color: '#a855f7', data: tick.cpu },
-            { name: 'RAM', color: '#60a5fa', data: tick.ram },
-            { name: 'GPU', color: '#f472b6', data: tick.gpu },
-          ]}
-        />
-        <div className="chart-xaxis">
-          <span>-60s</span><span>-45s</span><span>-30s</span><span>-15s</span><span>now</span>
-        </div>
-      </div>
-
-      <div className="metrics-row">
-        <div className="disk-card">
-          <div className="disk-head">
-            <div>
-              <div className="disk-title">Storage breakdown</div>
-              <div className="disk-sub" style={{ marginTop: 2 }}>Samsung 990 Pro · 1.86 TB</div>
-            </div>
-            <div className="disk-sub">{(totalDisk / 1024).toFixed(2)} TB total</div>
-          </div>
-          <div className="disk-bar" role="img" aria-label="Disk usage breakdown">
-            {window.DISK_SEGMENTS.map(seg => (
-              <div
-                key={seg.name}
-                className="disk-seg"
-                style={{ width: ((seg.gb / totalDisk) * 100).toFixed(2) + '%', background: seg.color }}
-                title={`${seg.name}: ${seg.gb} GB`}
-              />
-            ))}
-          </div>
-          <div className="disk-legend">
-            {window.DISK_SEGMENTS.map(seg => (
-              <div className="disk-leg-item" key={seg.name}>
-                <span className="d" style={{ background: seg.color }} />
-                <span className="name">{seg.name}</span>
-                <span className="val">{seg.gb} GB</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="proc-card">
-          <div className="proc-head">
-            <div>
-              <div className="proc-title">Top processes</div>
-              <div className="proc-sub" style={{ marginTop: 2 }}>by CPU · live</div>
-            </div>
-            <div className="proc-sub">{sortedProcs.length}</div>
-          </div>
-          <div className="proc-table">
-            <div className="proc-th">
-              <span>Process</span>
-              <span className="r">CPU</span>
-              <span className="r">RAM</span>
-            </div>
-            {sortedProcs.map(p => (
-              <div className="proc-row" key={p.name}>
-                <span className="proc-name">{p.name}</span>
-                <span className="proc-num">
-                  <span className="proc-cpu-bg">
-                    <span className="fill" style={{ width: Math.min(100, (p.cpu / maxProcCpu) * 100).toFixed(0) + '%' }} />
-                    <span className="txt">{p.cpu.toFixed(1)}%</span>
-                  </span>
-                </span>
-                <span className="proc-num">{p.ram.toFixed(0)} MB</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      <div className="sensors">
-        <div className="sensor"><span className="lab">CPU temp</span><span className="val">{(48 + (cur(tick.cpu) / 8)).toFixed(0)}<span className="u">°C</span></span></div>
-        <div className="sensor"><span className="lab">GPU temp</span><span className="val">{(38 + (cur(tick.gpu) / 5)).toFixed(0)}<span className="u">°C</span></span></div>
-        <div className="sensor"><span className="lab">NVME temp</span><span className="val">38<span className="u">°C</span></span></div>
-        <div className="sensor"><span className="lab">Fan</span><span className="val">{(1100 + cur(tick.cpu) * 18).toFixed(0)}<span className="u"> RPM</span></span></div>
-        <div className="sensor"><span className="lab">Uptime</span><span className="val">1d 4h <span className="u">{(18 + Math.floor(tick.secs / 60)).toString().padStart(2,'0')}m</span></span></div>
-      </div>
-    </div>
-  );
-};
-
+// (Removed: the simulated MetricsScreen dashboard — fake CPU/RAM/GPU series,
+// processes, disk segments. Out of scope; Log Pose is install + tweaks.)
 
 // ============ COMMAND PALETTE ============
 const CommandPalette = ({ open, onClose, items }) => {
@@ -1135,7 +909,10 @@ const App = () => {
   const dlQueueRef   = React.useRef([]);    // apps waiting to install (FIFO)
   const dlRunningRef = React.useRef(false); // is the queue processor running?
   const dlDismissRef = React.useRef({});    // key -> timer; auto-dismiss settled toasts
-  const [restoredSet, setRestoredSet] = React.useState(() => new Set());
+  const [installedAppx, setInstalledAppx] = React.useState(() => new Set()); // AppX present on this machine
+  const [removedSet, setRemovedSet] = React.useState(() => new Set());       // debloated this session
+  const [removingSet, setRemovingSet] = React.useState(() => new Set());     // removal in progress
+  const [appxLoading, setAppxLoading] = React.useState(true);
   const [tweaks, setTweaks] = React.useState(window.TWEAKS);
   const [cmdkOpen, setCmdkOpen] = React.useState(false);
 
@@ -1245,6 +1022,12 @@ const App = () => {
 
     // Real app-behavior settings (startup / tray / start-minimized).
     bridge.getSettings?.().then((s) => { if (s) setBehavior(s); }).catch(() => {});
+
+    // Live AppX inventory for the debloat (Features) tab.
+    bridge.listAppx?.().then((res) => {
+      if (res?.ok) setInstalledAppx(new Set(res.installed));
+      setAppxLoading(false);
+    }).catch(() => setAppxLoading(false));
   }, []); // eslint-disable-line
 
   // Check which installed apps have a winget update available.
@@ -1255,6 +1038,16 @@ const App = () => {
     }).catch(() => {});
   }, [bridge]);
   React.useEffect(() => { refreshUpgradable(); }, [refreshUpgradable]);
+
+  // Re-read the live AppX inventory (Features tab refresh button).
+  const refreshAppx = React.useCallback(() => {
+    if (!bridge?.listAppx) return;
+    setAppxLoading(true);
+    bridge.listAppx().then((res) => {
+      if (res?.ok) setInstalledAppx(new Set(res.installed));
+      setAppxLoading(false);
+    }).catch(() => setAppxLoading(false));
+  }, [bridge]);
 
   // Append a line to the active LOG drawer (restore / uninstall / actions still
   // use the single drawer; only app installs go through the download center).
@@ -1385,26 +1178,31 @@ const App = () => {
     }
   };
 
-  // ---- Feature restore (real DISM /Add-Capability via bridge)
-  const onRestore = async (f) => {
-    setRestoredSet(prev => new Set(prev).add(f.name));
-    const logApp = { name: f.name, id: f.type + ' · restoring' };
-    setLog({ app: logApp, lines: [{ text: `dism /online /add-capability /capabilityname:${f.name}`, kind: '' }], done: false });
+  // ---- AppX debloat (real Remove-AppxPackage via bridge)
+  const onRemoveAppx = async (f) => {
+    setRemovingSet(prev => new Set(prev).add(f.name));
+    const logApp = { name: f.label || f.name, id: f.name + ' · removing' };
+    setLog({ app: logApp, lines: [{ text: `Remove-AppxPackage ${f.name}`, kind: '' }], done: false });
+
+    const clearRemoving = () => setRemovingSet(prev => { const n = new Set(prev); n.delete(f.name); return n; });
 
     if (!bridge) {
       setLog(prev => prev ? { ...prev, lines: [...prev.lines, { text: 'No backend (browser preview).', kind: 'dim' }], done: true } : prev);
+      clearRemoving();
       return;
     }
     try {
-      const res = await bridge.restoreFeature(f.name, (chunk) => {
+      const res = await bridge.removeAppx(f.name, (chunk) => {
         setLog(prev => (prev && prev.app.id === logApp.id) ? { ...prev, lines: [...prev.lines, { text: chunk.replace(/\s+$/, ''), kind: 'dim' }] } : prev);
       });
+      if (res.ok) setRemovedSet(prev => new Set(prev).add(f.name));
       setLog(prev => (prev && prev.app.id === logApp.id)
-        ? { ...prev, lines: [...prev.lines, { text: res.ok ? 'Restored (may need reboot).' : `Failed (exit ${res.exitCode})`, kind: res.ok ? 'ok' : 'err' }], done: true }
+        ? { ...prev, lines: [...prev.lines, { text: res.ok ? 'Removed.' : `Failed (exit ${res.exitCode})`, kind: res.ok ? 'ok' : 'err' }], done: true }
         : prev);
     } catch (e) {
       setLog(prev => prev ? { ...prev, lines: [...prev.lines, { text: `Error: ${e.message}`, kind: 'err' }], done: true } : prev);
     }
+    clearRemoving();
   };
 
   // ---- Tweak toggle
@@ -1516,7 +1314,8 @@ const App = () => {
   };
 
   // ---- Counts for sidebar
-  const removedCount = features.filter(f => f.status === 'removed' && !restoredSet.has(f.name)).length;
+  // Sidebar badge: how many catalog apps are still present (debloatable).
+  const removedCount = features.filter(f => installedAppx.has(f.name) && !removedSet.has(f.name)).length;
   const tweaksOn = Object.values(tweaks).flat().filter(t => t.on).length;
   const counts = {
     apps:     window.APPS.length, // catalogue size (not installed count — that was misleading)
@@ -1612,7 +1411,7 @@ const App = () => {
   // ---- Page meta (title + one-line description), localized.
   const pageMeta = {
     apps:     { title: t('Apps'),     desc: t('Curated winget catalogue — install in one click, no bloat.') },
-    features: { title: t('Features'), desc: t('Windows components removed during install. Restore any you need back.') },
+    features: { title: t('Features'), desc: t('Remove pre-installed Windows apps you don\'t use.') },
     system:   { title: t('System'),   desc: t('Hardware, edition, and runtime info reported to the manifest.') },
     tweaks:   { title: t('Tweaks'),   desc: t('Post-install performance and privacy toggles.') },
     options:  { title: t('Options'),  desc: t('App preferences, updates and behavior.') },
@@ -1647,7 +1446,7 @@ const App = () => {
                 </>
               )}
               {route === 'features' && (
-                <button className="btn"><Icon name="refresh" size={15} />{t('Reload manifest')}</button>
+                <button className="btn" onClick={refreshAppx}><Icon name="refresh" size={15} />{t('Refresh')}</button>
               )}
               {route === 'system' && (
                 <button className="btn"><Icon name="download" size={15} />{t('Export report')}</button>
@@ -1659,7 +1458,7 @@ const App = () => {
 
             <div className="page-body" style={{ position: 'relative' }}>
               {route === 'apps'     && <AppsScreen cat={cat} installStates={installStates} onInstall={onInstall} onUninstall={onUninstall} upgradable={upgradable} onUpgrade={onUpgrade} />}
-              {route === 'features' && <FeaturesScreen features={features} onRestore={onRestore} restoredSet={restoredSet} />}
+              {route === 'features' && <FeaturesScreen features={features} installedAppx={installedAppx} onRemove={onRemoveAppx} removedSet={removedSet} removingSet={removingSet} loading={appxLoading} />}
               {route === 'system'   && <SystemScreen onAction={onAction} rows={sysRows} />}
               {route === 'tweaks'   && <TweaksScreen tweaks={tweaks} onToggle={onToggle} gameModeOn={gameModeOn} gameBusy={gameBusy} onToggleGameMode={onToggleGameMode} />}
               {route === 'options'  && <OptionsScreen

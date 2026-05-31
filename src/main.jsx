@@ -9,6 +9,7 @@ import '@fontsource/inter/700.css';
 import '@fontsource/space-mono/400.css';
 import '@fontsource/space-mono/700.css';
 
+import './bridge.js';      // installs window.onlyOS when running under Tauri (no-op otherwise)
 import './data.js';        // populates window.APPS, window.FEATURES, ... (side-effect)
 import './styles.css';
 import React from 'react';

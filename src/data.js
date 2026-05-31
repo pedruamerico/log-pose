@@ -54,63 +54,36 @@ window.APPS = [
 
 window.CATEGORIES = ['Browser', 'Gaming', 'Social', 'Dev', 'Media', 'Monitoring', 'Utility', 'Drivers', 'Runtimes'];
 
+// Debloat catalog — AppX packages safe to remove on a normal Windows 11.
+// Status is NOT stored here: the Features tab queries Get-AppxPackage live
+// (window.onlyOS.listAppx) and shows present vs. removed per machine. Curated
+// for a gaming user — Xbox / GameBar deliberately left out.
 window.FEATURES = [
-  { name: 'Microsoft.OneDrive',                       type: 'AppX',       status: 'removed' },
-  { name: 'Microsoft.BingWeather',                    type: 'AppX',       status: 'removed' },
-  { name: 'Microsoft.GetHelp',                        type: 'AppX',       status: 'removed' },
-  { name: 'Microsoft.Getstarted',                     type: 'AppX',       status: 'removed' },
-  { name: 'Microsoft.MicrosoftSolitaireCollection',   type: 'AppX',       status: 'removed' },
-  { name: 'Microsoft.PowerAutomateDesktop',           type: 'AppX',       status: 'removed' },
-  { name: 'Microsoft.Todos',                          type: 'AppX',       status: 'removed' },
-  { name: 'Microsoft.WindowsFeedbackHub',             type: 'AppX',       status: 'removed' },
-  { name: 'Microsoft.YourPhone',                      type: 'AppX',       status: 'removed' },
-  { name: 'Clipchamp.Clipchamp',                      type: 'AppX',       status: 'removed' },
-  { name: 'MicrosoftTeams',                           type: 'AppX',       status: 'removed' },
-  { name: 'Cortana',                                  type: 'Feature',    status: 'removed' },
-  { name: 'Recall',                                   type: 'Feature',    status: 'removed' },
-  { name: 'Copilot',                                  type: 'Feature',    status: 'removed' },
-  { name: 'Widgets',                                  type: 'Feature',    status: 'removed' },
-  { name: 'BingSearch',                               type: 'Feature',    status: 'removed' },
-  { name: 'App.Support.QuickAssist',                  type: 'Capability', status: 'removed' },
-  { name: 'Browser.InternetExplorer',                 type: 'Capability', status: 'removed' },
-  { name: 'Language.Handwriting~en-US',               type: 'LangPack',   status: 'removed' },
-  { name: 'Language.OCR~en-US',                       type: 'LangPack',   status: 'kept' },
-  { name: 'Microsoft.Paint',                          type: 'AppX',       status: 'kept' },
-  { name: 'Microsoft.WindowsNotepad',                 type: 'AppX',       status: 'kept' },
-  { name: 'Microsoft.WindowsTerminal',                type: 'AppX',       status: 'kept' },
-  { name: 'Microsoft.WindowsStore',                   type: 'AppX',       status: 'kept' },
+  { name: 'Microsoft.BingWeather',                  type: 'AppX', label: 'Weather' },
+  { name: 'Microsoft.BingNews',                     type: 'AppX', label: 'News' },
+  { name: 'Microsoft.GetHelp',                      type: 'AppX', label: 'Get Help' },
+  { name: 'Microsoft.Getstarted',                   type: 'AppX', label: 'Tips' },
+  { name: 'Microsoft.MicrosoftSolitaireCollection', type: 'AppX', label: 'Solitaire Collection' },
+  { name: 'Microsoft.PowerAutomateDesktop',         type: 'AppX', label: 'Power Automate' },
+  { name: 'Microsoft.Todos',                        type: 'AppX', label: 'Microsoft To Do' },
+  { name: 'Microsoft.WindowsFeedbackHub',           type: 'AppX', label: 'Feedback Hub' },
+  { name: 'Microsoft.YourPhone',                    type: 'AppX', label: 'Phone Link' },
+  { name: 'Clipchamp.Clipchamp',                    type: 'AppX', label: 'Clipchamp' },
+  { name: 'MicrosoftTeams',                         type: 'AppX', label: 'Teams (personal)' },
+  { name: 'Microsoft.WindowsMaps',                  type: 'AppX', label: 'Maps' },
+  { name: 'Microsoft.People',                       type: 'AppX', label: 'People' },
+  { name: 'Microsoft.MicrosoftOfficeHub',           type: 'AppX', label: 'Office hub' },
+  { name: 'Microsoft.SkypeApp',                     type: 'AppX', label: 'Skype' },
+  { name: 'Microsoft.MicrosoftStickyNotes',         type: 'AppX', label: 'Sticky Notes' },
+  { name: 'Microsoft.WindowsSoundRecorder',         type: 'AppX', label: 'Sound Recorder' },
+  { name: 'Microsoft.ZuneMusic',                    type: 'AppX', label: 'Media Player (Groove)' },
+  { name: 'Microsoft.ZuneVideo',                    type: 'AppX', label: 'Films & TV' },
+  { name: 'Microsoft.OutlookForWindows',            type: 'AppX', label: 'Outlook (new)' },
+  { name: 'Microsoft.Windows.DevHome',              type: 'AppX', label: 'Dev Home' },
 ];
 
-window.SYSTEM = [
-  { key: 'Edition',         val: 'Only OS',                          sub: 'build 24H2.3007' },
-  { key: 'Windows Build',   val: '10.0.26100.3007',                  sub: '64-bit' },
-  { key: 'CPU',             val: 'AMD Ryzen 7 7800X3D',              sub: '8C / 16T @ 4.2 GHz' },
-  { key: 'GPU',             val: 'NVIDIA GeForce RTX 4070',          sub: '12 GB GDDR6X' },
-  { key: 'RAM',             val: '32.0 GB DDR5',                     sub: '6000 MT/s — 18.4 / 32.0 GB used', usage: 0.575 },
-  { key: 'Storage',         val: 'Samsung 990 Pro 2TB',              sub: '418 GB free of 1.86 TB',          usage: 0.78 },
-  { key: 'Manifest',        val: 'only-os.v24h2.3007.json',          sub: 'verified · 24 entries' },
-  { key: 'Last Boot',       val: '2026-05-26 09:14:22',              sub: 'uptime 1d 4h 18m' },
-];
-
-window.DISK_SEGMENTS = [
-  { name: 'Windows',  gb: 38,  color: '#4b5563' },
-  { name: 'Apps',     gb: 142, color: '#a855f7' },
-  { name: 'Games',    gb: 612, color: '#60a5fa' },
-  { name: 'Media',    gb: 184, color: '#f472b6' },
-  { name: 'Other',    gb: 130, color: '#374151' },
-  { name: 'Free',     gb: 418, color: '#1a1a24' },
-];
-
-window.PROCESSES = [
-  { name: 'chrome.exe',        cpu: 8.4, ram: 1240 },
-  { name: 'Code.exe',          cpu: 4.2, ram: 580 },
-  { name: 'Discord.exe',       cpu: 1.8, ram: 320 },
-  { name: 'steamwebhelper.exe',cpu: 0.6, ram: 220 },
-  { name: 'dwm.exe',           cpu: 0.8, ram: 124 },
-  { name: 'explorer.exe',      cpu: 1.2, ram: 142 },
-  { name: 'LogPose.exe',       cpu: 0.6, ram:  86 },
-  { name: 'svchost.exe',       cpu: 0.3, ram:  64 },
-];
+// System specs come live from the backend (getHardware). No mock fallback —
+// if the query fails the System tab simply shows nothing rather than fiction.
 
 // Tweaks with `backend: <tweakId>` are wired to real registry/powercfg toggles
 // via window.onlyOS.setTweak / tweakStatus. The `on` here is a default; the app

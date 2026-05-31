@@ -1,0 +1,26 @@
+[package]
+name = "log-pose"
+version = "0.2.0"
+description = "Log Pose - companion app for Only OS"
+authors = ["pedronly"]
+edition = "2021"
+
+[lib]
+name = "log_pose_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["tray-icon"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["process", "io-util", "rt", "macros"] }
+regex = "1"
+winreg = "0.55"
+sysinfo = "0.33"
+walkdir = "2"
+ureq = "2"
+tauri-plugin-autostart = "2"
+tauri-plugin-updater = "2"

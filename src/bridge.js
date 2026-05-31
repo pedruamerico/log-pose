@@ -58,13 +58,18 @@ window.onlyOS = {
     listUpgradable: () =>
         safeInvoke('winget_upgradable', undefined, { ok: false, ids: [] }),
 
+    // Live details for the info popover (winget show).
+    appInfo: (packageId) => safeInvoke('winget_show', { packageId }, { ok: false }),
+
     // --- apps not on winget: download the vendor .exe and open it ---
     downloadRun: (key, url, fileName, onLog) =>
         streamInvoke('download_run', { key, url, fileName }, onLog),
 
-    // --- DISM capability restore ---
+    // --- DISM capability restore / remove ---
     restoreFeature: (capabilityName, onLog) =>
         streamInvoke('feature_restore', { capabilityName }, onLog),
+    removeFeature: (capabilityName, onLog) =>
+        streamInvoke('feature_remove', { capabilityName }, onLog),
 
     // --- AppX debloat (live present/remove) ---
     listAppx: () => safeInvoke('appx_list', undefined, { ok: false, installed: [] }),

@@ -344,7 +344,7 @@ const AppsScreen = ({ cat, installStates, onInstall, onUninstall, upgradable, on
 // Debloat tab: each catalog entry's present/removed state is read live from
 // the machine (installedAppx). Present packages can be removed; removed ones
 // just show their state. No fiction — reflects what's actually installed.
-const FeaturesScreen = ({ features, installedAppx, onRemove, removedSet, removingSet, loading }) => {
+const FeaturesScreen = ({ features, installedAppx, onRemove, onRemoveRecommended, batchRemoving, removedSet, removingSet, loading }) => {
   const t = useT();
   const [filter, setFilter] = React.useState('all');
   const [fquery, setFquery] = React.useState('');
@@ -361,6 +361,56 @@ const FeaturesScreen = ({ features, installedAppx, onRemove, removedSet, removin
   });
   const presentCount = features.filter(isPresent).length;
 
+  // How many recommended items are actually present (the batch button target).
+  const recommendedPresent = features.filter(f => f.recommend && isPresent(f)).length;
+
+  // Group the filtered list by category, in FEATURE_CATEGORIES order, and within
+  // each group put installed (actionable) first, then alphabetical by label.
+  const catOrder = window.FEATURE_CATEGORIES || [];
+  const groups = catOrder
+    .map(cat => ({
+      cat,
+      rows: filtered
+        .filter(f => (f.cat || 'Outros') === cat)
+        .sort((a, b) => {
+          const pa = isPresent(a) ? 0 : 1, pb = isPresent(b) ? 0 : 1;
+          if (pa !== pb) return pa - pb;
+          return (a.label || a.name).localeCompare(b.label || b.name);
+        }),
+    }))
+    .filter(g => g.rows.length > 0);
+
+  const renderRow = (f) => {
+    const present = isPresent(f);
+    const removing = removingSet.has(f.name);
+    return (
+      <div className="list-row" key={f.name}>
+        <span className="feat-name" style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
+          <span>{f.label || f.name}{f.recommend && <span className="recommend" style={{ marginLeft: 8 }}>{t('Recommended')}</span>}</span>
+          <span style={{ fontSize: 11, color: 'var(--text-dim)', fontFamily: 'var(--mono)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</span>
+        </span>
+        <span style={{ fontSize: 12, color: 'var(--text-mute)' }}>{f.type}</span>
+        <span>
+          {present ? (
+            <span className="status-chip status-kept"><span className="d" />{t('Installed')}</span>
+          ) : (
+            <span className="status-chip status-removed"><span className="d" />{t('Removed')}</span>
+          )}
+        </span>
+        <span style={{ display: 'flex', justifyContent: 'flex-end' }}>
+          {present ? (
+            <button className="btn btn-sm" disabled={removing || batchRemoving} onClick={() => onRemove(f)}>
+              <Icon name="trash" size={12} />
+              {removing ? t('Removing…') : t('Remove')}
+            </button>
+          ) : (
+            <span style={{ fontSize: 11.5, color: 'var(--text-dim)' }}>—</span>
+          )}
+        </span>
+      </div>
+    );
+  };
+
   return (
     <div className="fade-in">
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, gap: 12 }}>
@@ -374,6 +424,12 @@ const FeaturesScreen = ({ features, installedAppx, onRemove, removedSet, removin
           )}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          {recommendedPresent > 0 && (
+            <button className="btn btn-sm" disabled={batchRemoving} onClick={onRemoveRecommended} title={t('Remove all recommended items that are installed')}>
+              <Icon name="trash" size={12} />
+              {batchRemoving ? t('Removing…') : `${t('Remove recommended')} (${recommendedPresent})`}
+            </button>
+          )}
           <div className="search" style={{ width: 200 }}>
             <span style={{ color: 'var(--text-dim)', display:'flex' }}><Icon name="search" size={14} /></span>
             <input value={fquery} onChange={e => setFquery(e.target.value)} placeholder={t('Filter features…')} />
@@ -388,44 +444,20 @@ const FeaturesScreen = ({ features, installedAppx, onRemove, removedSet, removin
         </div>
       </div>
 
-      <div className="list">
-        <div className="list-head">
-          <span>{t('Name')}</span>
-          <span>{t('Type')}</span>
-          <span>{t('Status')}</span>
-          <span style={{ textAlign: 'right' }}>{t('Action')}</span>
-        </div>
-        {filtered.map(f => {
-          const present = isPresent(f);
-          const removing = removingSet.has(f.name);
-          return (
-            <div className="list-row" key={f.name}>
-              <span className="feat-name" style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
-                <span>{f.label || f.name}</span>
-                <span style={{ fontSize: 11, color: 'var(--text-dim)', fontFamily: 'var(--mono)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</span>
-              </span>
-              <span style={{ fontSize: 12, color: 'var(--text-mute)' }}>{f.type}</span>
-              <span>
-                {present ? (
-                  <span className="status-chip status-kept"><span className="d" />{t('Installed')}</span>
-                ) : (
-                  <span className="status-chip status-removed"><span className="d" />{t('Removed')}</span>
-                )}
-              </span>
-              <span style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                {present ? (
-                  <button className="btn btn-sm" disabled={removing} onClick={() => onRemove(f)}>
-                    <Icon name="trash" size={12} />
-                    {removing ? t('Removing…') : t('Remove')}
-                  </button>
-                ) : (
-                  <span style={{ fontSize: 11.5, color: 'var(--text-dim)' }}>—</span>
-                )}
-              </span>
+      {groups.map(g => (
+        <React.Fragment key={g.cat}>
+          <div className="section-label" style={{ marginTop: 18 }}>{t(g.cat)}</div>
+          <div className="list">
+            <div className="list-head">
+              <span>{t('Name')}</span>
+              <span>{t('Type')}</span>
+              <span>{t('Status')}</span>
+              <span style={{ textAlign: 'right' }}>{t('Action')}</span>
             </div>
-          );
-        })}
-      </div>
+            {g.rows.map(renderRow)}
+          </div>
+        </React.Fragment>
+      ))}
     </div>
   );
 };
@@ -1226,7 +1258,8 @@ const App = () => {
   const onRemoveAppx = async (f) => {
     setRemovingSet(prev => new Set(prev).add(f.name));
     const logApp = { name: f.label || f.name, id: f.name + ' · removing' };
-    setLog({ app: logApp, lines: [{ text: `Remove-AppxPackage ${f.name}`, kind: '' }], done: false });
+    const cmdLabel = f.type === 'Capability' ? `DISM /Remove-Capability ${f.name}` : `Remove-AppxPackage ${f.name}`;
+    setLog({ app: logApp, lines: [{ text: cmdLabel, kind: '' }], done: false });
 
     const clearRemoving = () => setRemovingSet(prev => { const n = new Set(prev); n.delete(f.name); return n; });
 
@@ -1236,9 +1269,13 @@ const App = () => {
       return;
     }
     try {
-      const res = await bridge.removeAppx(f.name, (chunk) => {
+      const onChunk = (chunk) =>
         setLog(prev => (prev && prev.app.id === logApp.id) ? { ...prev, lines: [...prev.lines, { text: chunk.replace(/\s+$/, ''), kind: 'dim' }] } : prev);
-      });
+      // Capability entries (e.g. Recall) go through DISM /Remove-Capability;
+      // AppX entries through Remove-AppxPackage. Default to AppX.
+      const res = f.type === 'Capability'
+        ? await bridge.removeFeature(f.name, onChunk)
+        : await bridge.removeAppx(f.name, onChunk);
       if (res.ok) setRemovedSet(prev => new Set(prev).add(f.name));
       setLog(prev => (prev && prev.app.id === logApp.id)
         ? { ...prev, lines: [...prev.lines, { text: res.ok ? 'Removed.' : `Failed (exit ${res.exitCode})`, kind: res.ok ? 'ok' : 'err' }], done: true }
@@ -1247,6 +1284,23 @@ const App = () => {
       setLog(prev => prev ? { ...prev, lines: [...prev.lines, { text: `Error: ${e.message}`, kind: 'err' }], done: true } : prev);
     }
     clearRemoving();
+  };
+
+  // ---- Batch remove: every "recommended" catalog item that is actually present.
+  // Sequential (one streaming log at a time), reusing onRemoveAppx so Capability
+  // vs AppX routing and state updates are identical to the manual flow.
+  const [batchRemoving, setBatchRemoving] = React.useState(false);
+  const onRemoveRecommended = async () => {
+    if (batchRemoving) return;
+    const targets = features.filter(f =>
+      f.recommend && installedAppx.has(f.name) && !removedSet.has(f.name));
+    if (targets.length === 0) return;
+    setBatchRemoving(true);
+    for (const f of targets) {
+      // eslint-disable-next-line no-await-in-loop
+      await onRemoveAppx(f);
+    }
+    setBatchRemoving(false);
   };
 
   // ---- Service optimization toggle (reversible; reboot to apply)
@@ -1523,7 +1577,7 @@ const App = () => {
 
             <div className="page-body" style={{ position: 'relative' }}>
               {route === 'apps'     && <AppsScreen cat={cat} installStates={installStates} onInstall={onInstall} onUninstall={onUninstall} upgradable={upgradable} onUpgrade={onUpgrade} />}
-              {route === 'features' && <FeaturesScreen features={features} installedAppx={installedAppx} onRemove={onRemoveAppx} removedSet={removedSet} removingSet={removingSet} loading={appxLoading} />}
+              {route === 'features' && <FeaturesScreen features={features} installedAppx={installedAppx} onRemove={onRemoveAppx} onRemoveRecommended={onRemoveRecommended} batchRemoving={batchRemoving} removedSet={removedSet} removingSet={removingSet} loading={appxLoading} />}
               {route === 'system'   && <SystemScreen onAction={onAction} rows={sysRows} />}
               {route === 'tweaks'   && <TweaksScreen tweaks={tweaks} onToggle={onToggle} gameModeOn={gameModeOn} gameBusy={gameBusy} onToggleGameMode={onToggleGameMode} services={window.SERVICES} serviceStatus={serviceStatus} onToggleService={onToggleService} coreIso={coreIso} onOpenCoreIso={onOpenCoreIso} />}
               {route === 'options'  && <OptionsScreen

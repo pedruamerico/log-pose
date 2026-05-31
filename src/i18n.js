@@ -116,6 +116,28 @@ const PT = {
   'Performance': 'Desempenho',
   'Developer': 'Desenvolvedor',
   'Recommended': 'Recomendado',
+  // (AI/IA section keys defined just below)
+  'AI': 'IA',
+  'IA': 'IA',
+  'Jogos': 'Jogos',
+  'Comunicação': 'Comunicação',
+  'Produtividade': 'Produtividade',
+  'Sistema': 'Sistema',
+  'Outros': 'Outros',
+  'Remove recommended': 'Remover recomendados',
+  'Remove all recommended items that are installed': 'Remove todos os itens recomendados que estão instalados',
+  'Disable Windows Copilot': 'Desativar o Windows Copilot',
+  'Applies the TurnOffWindowsCopilot policy so Copilot stays off for all users. Off = Windows default (Copilot allowed).':
+    'Aplica a policy TurnOffWindowsCopilot para manter o Copilot desligado para todos os usuários. Desligado = padrão do Windows (Copilot permitido).',
+  'Disable Recall (AI snapshots)': 'Desativar o Recall (capturas de IA)',
+  'Sets DisableAIDataAnalysis / AllowRecallEnablement=0 so Recall cannot capture snapshots. Pairs with removing the Recall capability in Recursos.':
+    'Define DisableAIDataAnalysis / AllowRecallEnablement=0 para o Recall não capturar telas. Combine com remover a capability Recall na aba Recursos.',
+  'Disable AI in Paint / Notepad': 'Desativar IA no Paint / Bloco de Notas',
+  'Turns off Cocreator / generative-AI features in Paint and Notepad via policy. Off = Windows default.':
+    'Desliga os recursos de IA generativa (Cocreator) no Paint e no Bloco de Notas via policy. Desligado = padrão do Windows.',
+  'Disable Bing/web search in Start': 'Desativar busca Bing/web no menu Iniciar',
+  'Stops the Start menu from sending searches to Bing/web (DisableSearchBoxSuggestions). Local search keeps working. Off = Windows default.':
+    'Impede o menu Iniciar de enviar buscas para o Bing/web (DisableSearchBoxSuggestions). A busca local continua funcionando. Desligado = padrão do Windows.',
   'Game Mode': 'Game Mode',
   'Active': 'Ativo',
   'One switch for max FPS: Ultimate power plan, GPU scheduling on, Game DVR & VBS off. Reverts to balanced & secure when off. VBS change needs a restart.':

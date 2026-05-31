@@ -15,17 +15,32 @@ fn is_valid_appx(name: &str) -> bool {
             .all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '-' | '*'))
 }
 
-// Names of AppX packages currently installed for the user (e.g.
-// "Microsoft.BingWeather"). The Features catalog matches its entries against
-// this set to decide present vs. removed.
+// Names currently present on this machine: AppX package names (e.g.
+// "Microsoft.BingWeather") plus the SHORT name of any installed Windows
+// capability (e.g. "Recall" from "Recall~~~~0.0.1.0"). The Features catalog
+// matches its entries (AppX by exact name, Capability by short name) against
+// this set to decide present vs. removed. Capability short name = the part
+// before the first '~', so the catalog can use "Recall" without the version.
 #[tauri::command]
 pub fn appx_list() -> Value {
     let out = util::powershell("Get-AppxPackage | ForEach-Object { $_.Name }");
-    let installed: Vec<String> = out
+    let mut installed: Vec<String> = out
         .lines()
         .map(|l| l.trim().to_string())
         .filter(|l| !l.is_empty())
         .collect();
+
+    // Installed capabilities, reduced to their short name (before the first '~').
+    let caps = util::powershell(
+        "Get-WindowsCapability -Online | Where-Object State -eq 'Installed' | ForEach-Object { ($_.Name -split '~')[0] }",
+    );
+    for line in caps.lines() {
+        let short = line.trim();
+        if !short.is_empty() {
+            installed.push(short.to_string());
+        }
+    }
+
     json!({ "ok": true, "installed": installed })
 }
 

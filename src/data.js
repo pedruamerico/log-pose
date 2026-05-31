@@ -54,33 +54,72 @@ window.APPS = [
 
 window.CATEGORIES = ['Browser', 'Gaming', 'Social', 'Dev', 'Media', 'Monitoring', 'Utility', 'Drivers', 'Runtimes'];
 
-// Debloat catalog — AppX packages safe to remove on a normal Windows 11.
-// Status is NOT stored here: the Features tab queries Get-AppxPackage live
-// (window.onlyOS.listAppx) and shows present vs. removed per machine. Curated
-// for a gaming user — Xbox / GameBar deliberately left out.
+// Debloat catalog — packages/capabilities safe to remove. Status is NOT stored
+// here: the Features tab queries the machine live (window.onlyOS.listAppx) and
+// shows present vs. removed per machine — so entries that Atlas OS already
+// stripped just read as "Removed", and names that don't exist on this build are
+// harmless. Curated for the new target: Windows 11 25H2 after Atlas OS, where
+// AI (Copilot/Recall), Xbox/games and some bloat survive.
+//
+// Fields: { name, type, label, cat, recommend? }
+//   cat        — section header (see FEATURE_CATEGORIES) to group the list.
+//   recommend  — true => included in the "Remover recomendados" batch button.
+//   type       — 'AppX' (removed via appx_remove) or 'Capability' (DISM, via
+//                feature_remove). Recall/Outlook etc. ship as DISM capabilities,
+//                not AppX, so Remove-AppxPackage can't touch them.
 window.FEATURES = [
-  { name: 'Microsoft.BingWeather',                  type: 'AppX', label: 'Weather' },
-  { name: 'Microsoft.BingNews',                     type: 'AppX', label: 'News' },
-  { name: 'Microsoft.GetHelp',                      type: 'AppX', label: 'Get Help' },
-  { name: 'Microsoft.Getstarted',                   type: 'AppX', label: 'Tips' },
-  { name: 'Microsoft.MicrosoftSolitaireCollection', type: 'AppX', label: 'Solitaire Collection' },
-  { name: 'Microsoft.PowerAutomateDesktop',         type: 'AppX', label: 'Power Automate' },
-  { name: 'Microsoft.Todos',                        type: 'AppX', label: 'Microsoft To Do' },
-  { name: 'Microsoft.WindowsFeedbackHub',           type: 'AppX', label: 'Feedback Hub' },
-  { name: 'Microsoft.YourPhone',                    type: 'AppX', label: 'Phone Link' },
-  { name: 'Clipchamp.Clipchamp',                    type: 'AppX', label: 'Clipchamp' },
-  { name: 'MicrosoftTeams',                         type: 'AppX', label: 'Teams (personal)' },
-  { name: 'Microsoft.WindowsMaps',                  type: 'AppX', label: 'Maps' },
-  { name: 'Microsoft.People',                       type: 'AppX', label: 'People' },
-  { name: 'Microsoft.MicrosoftOfficeHub',           type: 'AppX', label: 'Office hub' },
-  { name: 'Microsoft.SkypeApp',                     type: 'AppX', label: 'Skype' },
-  { name: 'Microsoft.MicrosoftStickyNotes',         type: 'AppX', label: 'Sticky Notes' },
-  { name: 'Microsoft.WindowsSoundRecorder',         type: 'AppX', label: 'Sound Recorder' },
-  { name: 'Microsoft.ZuneMusic',                    type: 'AppX', label: 'Media Player (Groove)' },
-  { name: 'Microsoft.ZuneVideo',                    type: 'AppX', label: 'Films & TV' },
-  { name: 'Microsoft.OutlookForWindows',            type: 'AppX', label: 'Outlook (new)' },
-  { name: 'Microsoft.Windows.DevHome',              type: 'AppX', label: 'Dev Home' },
+  // --- IA (Copilot / Recall / Windows AI) — recommended for the clean target ---
+  { name: 'Microsoft.Copilot',                       type: 'AppX',       cat: 'IA', label: 'Copilot', recommend: true },
+  { name: 'Microsoft.Windows.Ai.Copilot.Provider',   type: 'AppX',       cat: 'IA', label: 'Copilot provider', recommend: true },
+  { name: 'MicrosoftWindows.Client.AIX',             type: 'AppX',       cat: 'IA', label: 'AI experiences (AIX)', recommend: true },
+  { name: 'MicrosoftWindows.Client.CoPilot',         type: 'AppX',       cat: 'IA', label: 'Copilot (client)', recommend: true },
+  { name: 'Recall',                                  type: 'Capability', cat: 'IA', label: 'Recall (Windows AI)', recommend: true },
+
+  // --- Jogos (Xbox / Game services) — optional; not removed unless you pick them
+  { name: 'Microsoft.GamingApp',                     type: 'AppX', cat: 'Jogos', label: 'Xbox app' },
+  { name: 'Microsoft.XboxGamingOverlay',             type: 'AppX', cat: 'Jogos', label: 'Xbox Game Bar' },
+  { name: 'Microsoft.XboxGameOverlay',               type: 'AppX', cat: 'Jogos', label: 'Xbox Game Overlay' },
+  { name: 'Microsoft.Xbox.TCUI',                     type: 'AppX', cat: 'Jogos', label: 'Xbox TCUI' },
+  { name: 'Microsoft.XboxSpeechToTextOverlay',       type: 'AppX', cat: 'Jogos', label: 'Xbox Speech-to-Text' },
+  { name: 'Microsoft.XboxIdentityProvider',          type: 'AppX', cat: 'Jogos', label: 'Xbox Identity Provider' },
+  { name: 'Microsoft.GamingServices',                type: 'AppX', cat: 'Jogos', label: 'Gaming Services' },
+  { name: 'Microsoft.MicrosoftSolitaireCollection',  type: 'AppX', cat: 'Jogos', label: 'Solitaire Collection', recommend: true },
+
+  // --- Comunicação ---
+  { name: 'Microsoft.YourPhone',                     type: 'AppX', cat: 'Comunicação', label: 'Phone Link' },
+  { name: 'MicrosoftTeams',                          type: 'AppX', cat: 'Comunicação', label: 'Teams (personal)', recommend: true },
+  { name: 'Microsoft.SkypeApp',                      type: 'AppX', cat: 'Comunicação', label: 'Skype', recommend: true },
+  { name: 'Microsoft.People',                        type: 'AppX', cat: 'Comunicação', label: 'People' },
+  { name: 'Microsoft.OutlookForWindows',             type: 'AppX', cat: 'Comunicação', label: 'Outlook (new)' },
+
+  // --- Mídia ---
+  { name: 'Clipchamp.Clipchamp',                     type: 'AppX', cat: 'Mídia', label: 'Clipchamp', recommend: true },
+  { name: 'Microsoft.ZuneMusic',                     type: 'AppX', cat: 'Mídia', label: 'Media Player (Groove)' },
+  { name: 'Microsoft.ZuneVideo',                     type: 'AppX', cat: 'Mídia', label: 'Films & TV' },
+  { name: 'Microsoft.WindowsSoundRecorder',          type: 'AppX', cat: 'Mídia', label: 'Sound Recorder' },
+
+  // --- Produtividade ---
+  { name: 'Microsoft.PowerAutomateDesktop',          type: 'AppX', cat: 'Produtividade', label: 'Power Automate', recommend: true },
+  { name: 'Microsoft.Todos',                         type: 'AppX', cat: 'Produtividade', label: 'Microsoft To Do' },
+  { name: 'Microsoft.MicrosoftStickyNotes',          type: 'AppX', cat: 'Produtividade', label: 'Sticky Notes' },
+  { name: 'Microsoft.MicrosoftOfficeHub',            type: 'AppX', cat: 'Produtividade', label: 'Office hub', recommend: true },
+  { name: 'Microsoft.Windows.DevHome',               type: 'AppX', cat: 'Produtividade', label: 'Dev Home' },
+
+  // --- Sistema / Bing / bloat that Atlas may leave behind ---
+  { name: 'Microsoft.BingWeather',                   type: 'AppX', cat: 'Sistema', label: 'Weather', recommend: true },
+  { name: 'Microsoft.BingNews',                      type: 'AppX', cat: 'Sistema', label: 'News', recommend: true },
+  { name: 'Microsoft.BingSearch',                    type: 'AppX', cat: 'Sistema', label: 'Bing Search (web no menu)', recommend: true },
+  { name: 'Microsoft.GetHelp',                       type: 'AppX', cat: 'Sistema', label: 'Get Help' },
+  { name: 'Microsoft.Getstarted',                    type: 'AppX', cat: 'Sistema', label: 'Tips' },
+  { name: 'Microsoft.WindowsFeedbackHub',            type: 'AppX', cat: 'Sistema', label: 'Feedback Hub', recommend: true },
+  { name: 'Microsoft.WindowsMaps',                   type: 'AppX', cat: 'Sistema', label: 'Maps' },
+  { name: 'Microsoft.Windows.QuickAssist',           type: 'AppX', cat: 'Sistema', label: 'Quick Assist' },
+  { name: 'MicrosoftWindows.CrossDevice',            type: 'AppX', cat: 'Sistema', label: 'Cross Device' },
 ];
+
+// Order of section headers in the Features tab (entries with an unlisted cat
+// fall under "Outros" at the end).
+window.FEATURE_CATEGORIES = ['IA', 'Jogos', 'Comunicação', 'Mídia', 'Produtividade', 'Sistema', 'Outros'];
 
 // System specs come live from the backend (getHardware). No mock fallback —
 // if the query fails the System tab simply shows nothing rather than fiction.
@@ -106,6 +145,16 @@ window.TWEAKS = {
   ],
   Developer: [
     { id: 'wsl', backend: 'wsl', name: 'Linux & containers (WSL2)', desc: 'Enables WSL2 + Hyper-V platform. Required for Docker Desktop / Podman / Linux dev. Off keeps Hyper-V dormant for max gaming FPS. Requires reboot.', on: false },
+  ],
+  // AI policies (25H2). These are reversible registry toggles — turning a switch
+  // ON applies the policy that DISABLES the AI feature; turning it OFF removes
+  // the policy and restores the Windows default. `on: true` is the recommended
+  // (disabled-AI) state for the clean target; the app reads the real state on load.
+  AI: [
+    { id: 'copilot-off', backend: 'copilot-off', name: 'Disable Windows Copilot', desc: 'Applies the TurnOffWindowsCopilot policy so Copilot stays off for all users. Off = Windows default (Copilot allowed).', recommend: true, on: true },
+    { id: 'recall-off',  backend: 'recall-off',  name: 'Disable Recall (AI snapshots)', desc: 'Sets DisableAIDataAnalysis / AllowRecallEnablement=0 so Recall cannot capture snapshots. Pairs with removing the Recall capability in Recursos.', recommend: true, on: true },
+    { id: 'ai-cocreator-off', backend: 'ai-cocreator-off', name: 'Disable AI in Paint / Notepad', desc: 'Turns off Cocreator / generative-AI features in Paint and Notepad via policy. Off = Windows default.', on: true },
+    { id: 'web-search-off',   backend: 'web-search-off',   name: 'Disable Bing/web search in Start', desc: 'Stops the Start menu from sending searches to Bing/web (DisableSearchBoxSuggestions). Local search keeps working. Off = Windows default.', recommend: true, on: true },
   ],
 };
 

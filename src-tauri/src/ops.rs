@@ -101,6 +101,40 @@ pub async fn feature_restore(capability_name: String, channel: Channel<String>) 
     json!({ "ok": code == 0, "exitCode": code })
 }
 
+// Remove a Windows capability (e.g. Recall) via DISM. The Features catalog
+// passes a short name like "Recall"; DISM needs the full capability id
+// (Recall~~~~), so we first resolve it from /Get-Capabilities and then remove
+// the match. dism returns 3010 on success-needs-reboot (treated as ok).
+#[tauri::command]
+pub async fn feature_remove(capability_name: String, channel: Channel<String>) -> Value {
+    if !util::is_valid_capability(&capability_name) {
+        return json!({ "ok": false, "error": "invalid name" });
+    }
+    let _ = channel.send(format!("==> Resolving capability {capability_name}...\n"));
+    // Find the full id whose name starts with the requested prefix.
+    let listing = util::powershell(&format!(
+        "(Get-WindowsCapability -Online | Where-Object {{ $_.Name -like '{capability_name}*' -and $_.State -eq 'Installed' }} | Select-Object -First 1 -ExpandProperty Name)"
+    ));
+    let full = listing.trim();
+    if full.is_empty() {
+        let _ = channel.send("==> Not installed (or not present on this build). Nothing to remove.\n".into());
+        return json!({ "ok": true, "exitCode": 0, "skipped": true });
+    }
+    if !util::is_valid_capability(full) {
+        return json!({ "ok": false, "error": "resolved name failed validation" });
+    }
+    let _ = channel.send(format!("==> Removing capability {full}...\n"));
+    let arg = format!("/CapabilityName:{full}");
+    let code = util::stream(
+        &channel,
+        "dism.exe",
+        &["/Online", "/Remove-Capability", &arg, "/NoRestart"],
+    )
+    .await;
+    let ok = code == 0 || code == 3010;
+    json!({ "ok": ok, "exitCode": code, "needsReboot": code == 3010 })
+}
+
 // Maintenance actions — (program, args). `winget` is resolved lazily.
 fn maintenance(action: &str) -> Option<(String, Vec<String>)> {
     let ps = |cmd: &str| {

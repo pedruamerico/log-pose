@@ -19,6 +19,10 @@ const GRAPHICS: &str = r"HKLM\SYSTEM\CurrentControlSet\Control\GraphicsDrivers";
 const GAMEDVR: &str = r"HKCU\System\GameConfigStore";
 const DEVGUARD: &str = r"HKLM\SYSTEM\CurrentControlSet\Control\DeviceGuard";
 const WUX: &str = r"HKLM\SOFTWARE\Microsoft\WindowsUpdate\UX\Settings";
+// AI policy keys (25H2). WinAI is the per-user Windows AI policy hive.
+const COPILOT: &str = r"HKLM\SOFTWARE\Policies\Microsoft\Windows\WindowsCopilot";
+const WINAI: &str = r"HKLM\SOFTWARE\Policies\Microsoft\Windows\WindowsAI";
+const EXPLORER_POL: &str = r"HKCU\SOFTWARE\Policies\Microsoft\Windows\Explorer";
 
 // --- registry helpers (winreg) ----------------------------------------------
 
@@ -189,6 +193,44 @@ pub fn tweak_set(id: String, enabled: bool) -> Value {
                 )));
             }
         }
+        // AI policies: `enabled` = apply the policy that DISABLES the AI feature;
+        // disabling the toggle removes the policy (restores the Windows default).
+        "copilot-off" => {
+            if enabled {
+                push(set_dword(COPILOT, "TurnOffWindowsCopilot", 1));
+            } else {
+                push(del_value(COPILOT, "TurnOffWindowsCopilot"));
+            }
+        }
+        "recall-off" => {
+            if enabled {
+                push(set_dword(WINAI, "DisableAIDataAnalysis", 1));
+                push(set_dword(WINAI, "AllowRecallEnablement", 0));
+            } else {
+                push(del_value(WINAI, "DisableAIDataAnalysis"));
+                push(del_value(WINAI, "AllowRecallEnablement"));
+            }
+        }
+        "ai-cocreator-off" => {
+            if enabled {
+                push(set_dword(WINAI, "DisableImageCreator", 1));
+                push(set_dword(WINAI, "DisableCocreator", 1));
+                push(set_dword(WINAI, "DisableGenerativeFill", 1));
+                push(set_dword(WINAI, "DisableTextGeneration", 1));
+            } else {
+                push(del_value(WINAI, "DisableImageCreator"));
+                push(del_value(WINAI, "DisableCocreator"));
+                push(del_value(WINAI, "DisableGenerativeFill"));
+                push(del_value(WINAI, "DisableTextGeneration"));
+            }
+        }
+        "web-search-off" => {
+            if enabled {
+                push(set_dword(EXPLORER_POL, "DisableSearchBoxSuggestions", 1));
+            } else {
+                push(del_value(EXPLORER_POL, "DisableSearchBoxSuggestions"));
+            }
+        }
         _ => return json!({ "ok": false, "error": "unknown tweak" }),
     }
 
@@ -224,6 +266,11 @@ pub fn tweak_status(ids: Vec<String>) -> Value {
                 );
                 Some(out.contains("Enabled"))
             }
+            // AI toggles report "on" when the disabling policy is in place.
+            "copilot-off" => Some(read_dword(COPILOT, "TurnOffWindowsCopilot") == Some(1)),
+            "recall-off" => Some(read_dword(WINAI, "DisableAIDataAnalysis") == Some(1)),
+            "ai-cocreator-off" => Some(read_dword(WINAI, "DisableCocreator") == Some(1)),
+            "web-search-off" => Some(read_dword(EXPLORER_POL, "DisableSearchBoxSuggestions") == Some(1)),
             _ => None,
         };
         result.insert(

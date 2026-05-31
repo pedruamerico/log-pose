@@ -133,6 +133,85 @@ pub async fn winget_upgrade(package_id: String, channel: Channel<String>) -> Val
     json!({ "ok": code == 0, "exitCode": code })
 }
 
+// --- show (live details for the info popover) -------------------------------
+// Parses `winget show` output. winget localizes the field labels to the Windows
+// display language, so we match English + pt-BR spellings; anything we can't
+// parse is just omitted (the popover still shows the catalogue description).
+
+#[tauri::command]
+pub fn winget_show(package_id: String) -> Value {
+    if !util::is_valid_pkg(&package_id) {
+        return json!({ "ok": false });
+    }
+    let (stdout, _) = util::run_capture(
+        &resolve(),
+        &[
+            "show",
+            "--id",
+            &package_id,
+            "--exact",
+            "--disable-interactivity",
+            "--accept-source-agreements",
+        ],
+    );
+    if stdout.is_empty() {
+        return json!({ "ok": false });
+    }
+    let clean = util::clean_winget(&stdout);
+
+    let field = |line: &str, labels: &[&str]| -> Option<String> {
+        let l = line.trim_start();
+        for lab in labels {
+            if let Some(v) = l.strip_prefix(lab) {
+                let v = v.trim();
+                if !v.is_empty() {
+                    return Some(v.to_string());
+                }
+            }
+        }
+        None
+    };
+
+    let mut version = String::new();
+    let mut publisher = String::new();
+    let mut description = String::new();
+    let mut homepage = String::new();
+    for line in clean.lines() {
+        if version.is_empty() {
+            if let Some(v) = field(line, &["Version:", "Versão:"]) {
+                version = v;
+                continue;
+            }
+        }
+        if publisher.is_empty() {
+            if let Some(v) = field(line, &["Publisher:", "Editor:"]) {
+                publisher = v;
+                continue;
+            }
+        }
+        if homepage.is_empty() {
+            if let Some(v) = field(line, &["Homepage:", "Página Inicial:", "Página inicial:"]) {
+                homepage = v;
+                continue;
+            }
+        }
+        if description.is_empty() {
+            if let Some(v) = field(line, &["Description:", "Descrição:"]) {
+                description = v;
+                continue;
+            }
+        }
+    }
+
+    json!({
+        "ok": true,
+        "version": version,
+        "publisher": publisher,
+        "description": description,
+        "homepage": homepage,
+    })
+}
+
 // --- list (which catalog ids are installed) ---------------------------------
 
 fn name_fallback(id: &str) -> Option<&'static [&'static str]> {

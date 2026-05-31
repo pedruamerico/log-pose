@@ -177,7 +177,7 @@ app.whenReady().then(() => {
     const win = createWindow();
     if (settings.tray) setupTray();
 
-    // Auto-update: only in packaged builds. Checks GitHub Releases (only-os-releases).
+    // Auto-update: only in packaged builds. Checks GitHub Releases (log-pose).
     if (autoUpdater && !isDev) {
         autoUpdater.autoDownload = true;
         autoUpdater.on('update-available', (info) => {

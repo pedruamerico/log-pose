@@ -1,37 +1,64 @@
-# OnlyOS Toolbox
+# Log Pose
 
-Post-install companion app for Only OS. Electron-based, dark themed.
+Post-format Windows app installer. You reinstall the OS, run Log Pose, and the
+programs you always end up needing are queued and installed in one place — fast.
 
-## Features
+Companion app for the **Only OS** Windows build, but it runs on any normal
+Windows 11 install.
 
-- **Apps tab** — one-click installs via `winget` (Chrome, Discord, Steam, VSCode, Git, Docker, PowerToys, etc).
-- **Features tab** — reads `C:\Program Files\OnlyOS\removed-features.json` (manifest written by the ISO pipeline) and lists what was removed per edition.
-- **System tab** — shows current edition, manifest status, runtime info.
-- **Log drawer** — streams live `winget` stdout/stderr during installs.
+## Stack
+
+Electron 33 · Vite 6 · React 18. No backend service — the renderer talks to the
+main process over a context-isolated IPC bridge (`window.onlyOS.*`).
+
+## What it does
+
+- **Apps** — one-click installs via `winget` (curated catalogue) plus a few apps
+  not on winget (NVIDIA App, AMD Adrenalin, WhatsApp, DirectX) downloaded straight
+  from the vendor. FIFO queue, live stdout/stderr log, install / uninstall /
+  upgrade / full wipe (uninstall + leftover folders).
+- **Tweaks** — post-install performance/privacy toggles wired to real registry /
+  powercfg / DISM operations, plus a one-switch Game Mode.
+- **System** — real hardware info, a startup-programs manager (reversible, same
+  store Task Manager uses), and maintenance actions (clear temp, flush DNS,
+  SFC + DISM repair, restore point).
+- **Features** — lists Windows components removed by the Only OS image and lets
+  you restore any back via DISM. (No-op on a normal Windows install.)
+- Command palette (`Ctrl+K`), system tray, pt-BR / en, auto-update.
 
 ## Dev
 
 ```powershell
-cd D:\Code\Projetos\only-os\toolbox
 npm install
-$env:ELECTRON_RUN_AS_NODE=$null   # if set, electron.exe runs as plain Node and `app` is undefined
-npm start
+npm run dev   # vite + electron (dev-launch)
 ```
 
 > Gotcha: if you see `Cannot read properties of undefined (reading 'whenReady')`,
-> the env var `ELECTRON_RUN_AS_NODE=1` is set in your shell. Clear it (line above).
+> the env var `ELECTRON_RUN_AS_NODE=1` is set in your shell — electron.exe is
+> running as plain Node. Clear it: `$env:ELECTRON_RUN_AS_NODE=$null`.
 
-## Build portable .exe
+## Build
 
 ```powershell
-npm run build:portable
-# output: dist\OnlyOS Toolbox <version>.exe (single-file portable)
+npm run build            # NSIS installer + portable -> dist-app/
+npm run build:portable   # portable only
 ```
 
-## Architecture
+Artifacts: `LogPose-Setup.exe`, `LogPose-portable.exe`.
 
-- `electron.js` — main process. Owns IPC handlers (`system:info`, `winget:install`).
-- `preload.js` — contextIsolation bridge. Renderer only sees `window.onlyOS.*`.
-- `src/index.html`, `style.css`, `app.js` — renderer (no React, vanilla DOM).
+## Layout
 
-Security model: contextIsolation on, nodeIntegration off, sandbox off (needed for `child_process` in main). Renderer has zero access to Node APIs directly.
+- `electron/main.js` — main process. All IPC handlers (winget, DISM, registry
+  tweaks, maintenance, startup, hardware, auto-update).
+- `electron/preload.js` — context-isolated bridge. Renderer only sees
+  `window.onlyOS.*`.
+- `src/App.jsx` — renderer (React). `src/data.js` — app catalogue + tweak
+  definitions. `src/i18n.js` — pt-BR / en strings.
+
+Security model: `contextIsolation` on, `nodeIntegration` off, `sandbox` off (the
+main process needs `child_process` to drive winget/DISM). The renderer has no
+direct Node access.
+
+## License
+
+MIT.

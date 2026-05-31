@@ -71,7 +71,7 @@
     "publish": {
       "provider": "github",
       "owner": "pedruamerico",
-      "repo": "only-os-releases"
+      "repo": "log-pose"
     }
   }
 }

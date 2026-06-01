@@ -3,6 +3,7 @@ window.APPS = [
   // Browser
   { id: 'Google.Chrome', name: 'Google Chrome', cat: 'Browser', desc: 'Fast, secure browser built by Google.', icon: 'Ch' },
   { id: 'Brave.Brave', name: 'Brave', cat: 'Browser', desc: 'Chromium browser with built-in tracker and ad blocking.', icon: 'Br' },
+  { id: 'Opera.Opera', name: 'Opera', cat: 'Browser', desc: 'Chromium browser with built-in ad blocker, free VPN, and messenger sidebar.', icon: 'Op' },
   { id: 'Opera.OperaGX', name: 'Opera GX', cat: 'Browser', desc: 'Gamer-themed Chromium browser with CPU/RAM/network limiters.', icon: 'GX' },
 
   // Gaming
@@ -36,16 +37,23 @@ window.APPS = [
   // Monitoring
   { id: 'CPUID.CPU-Z', name: 'CPU-Z', cat: 'Monitoring', desc: 'Reports CPU, mainboard, memory, and GPU details.', icon: 'CZ' },
   { id: 'Guru3D.Afterburner', name: 'MSI Afterburner', cat: 'Monitoring', desc: 'GPU overclock, fan control, and on-screen metrics.', icon: 'AB' },
+  { id: 'REALiX.HWiNFO', name: 'HWiNFO', cat: 'Monitoring', desc: 'In-depth hardware sensors — temperatures, clocks, voltages, and reports.', icon: 'HW' },
+  { id: 'TechPowerUp.GPU-Z', name: 'GPU-Z', cat: 'Monitoring', desc: 'Detailed GPU info and real-time sensor monitoring.', icon: 'GZ' },
+  { id: 'CrystalDewWorld.CrystalDiskInfo', name: 'CrystalDiskInfo', cat: 'Monitoring', desc: 'S.M.A.R.T. health and temperature monitoring for SSDs and HDDs.', icon: 'DI' },
 
   // Utility
   { id: '7zip.7zip', name: '7-Zip', cat: 'Utility', desc: 'High-compression archiver supporting many formats.', icon: '7z' },
   { id: 'Skillbrains.Lightshot', name: 'Lightshot', cat: 'Utility', desc: 'Quick screenshot capture and share.', icon: 'Ls' },
   { id: 'File-New-Project.EarTrumpet', name: 'EarTrumpet', cat: 'Utility', desc: 'Per-app volume control replacement for the Windows mixer. Open-source.', icon: 'ET' },
+  // vibranceGUI isn't on winget — pulled straight from the project's GitHub release.
+  { id: 'VibranceGUI', name: 'vibranceGUI', cat: 'Utility', desc: 'Auto digital-vibrance per game — saturation boost for FPS titles (Valorant/CS).', icon: 'VG', kind: 'download', url: 'https://github.com/juv/vibranceGUI/releases/download/v2.5.0/vibranceGUI.exe', file: 'vibranceGUI.exe' },
 
   // Drivers (NVIDIA/AMD not on winget — downloaded straight from the vendor)
   { id: 'IObit.DriverBooster', name: 'IObit Driver Booster', cat: 'Drivers', desc: 'Driver updater with a large database. Watch the installer for bundled offers.', icon: 'IO' },
   { id: 'NvidiaApp', name: 'NVIDIA App', cat: 'Drivers', desc: 'NVIDIA driver + control panel (overclock, game optimization, recording). For GeForce GPUs.', icon: 'NV', kind: 'download', url: 'https://us.download.nvidia.com/nvapp/client/11.0.7.247/NVIDIA_app_v11.0.7.247.exe', file: 'NVIDIA_app.exe' },
-  { id: 'AmdAdrenalin', name: 'AMD Adrenalin', cat: 'Drivers', desc: 'AMD driver + Adrenalin software (tuning, recording). For Radeon GPUs / APUs.', icon: 'AMD', kind: 'download', url: 'https://drivers.amd.com/drivers/installer/26.10/whql/amd-software-adrenalin-edition-26.5.2-minimalsetup-260513_web.exe', file: 'amd-adrenalin-setup.exe' },
+  // AMD's CDN (Akamai Bot Manager) bounces direct GETs to a "download incomplete"
+  // HTML page unless the request carries a Referer from the AMD download page.
+  { id: 'AmdAdrenalin', name: 'AMD Adrenalin', cat: 'Drivers', desc: 'AMD driver + Adrenalin software (tuning, recording). For Radeon GPUs / APUs.', icon: 'AMD', kind: 'download', url: 'https://drivers.amd.com/drivers/installer/26.10/whql/amd-software-adrenalin-edition-26.5.2-minimalsetup-260513_web.exe', file: 'amd-adrenalin-setup.exe', referer: 'https://www.amd.com/en/support/download/drivers.html' },
 
   // Runtimes (on-demand -- only-os ships NONE baked, like Ghost; install here when
   // a game/app needs them. The Ghost Toolbox [16]/[17] equivalent.)
@@ -55,7 +63,7 @@ window.APPS = [
   { id: 'Microsoft.DotNet.DesktopRuntime.8', name: '.NET Desktop Runtime 8', cat: 'Runtimes', desc: 'Runtime for .NET 8 desktop apps (WPF / WinForms).', icon: 'NET' },
 ];
 
-window.CATEGORIES = ['Browser', 'Gaming', 'Social', 'Dev', 'Media', 'Monitoring', 'Utility', 'Drivers', 'Runtimes'];
+window.CATEGORIES = ['Browser', 'Gaming', 'Social', 'Media', 'Monitoring', 'Utility', 'Drivers', 'Dev', 'Runtimes'];
 
 // Debloat catalog — packages/capabilities safe to remove. Status is NOT stored
 // here: the Features tab queries the machine live (window.onlyOS.listAppx) and

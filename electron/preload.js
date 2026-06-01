@@ -40,11 +40,11 @@ contextBridge.exposeInMainWorld('onlyOS', {
     appInfo: (packageId) => ipcRenderer.invoke('winget:show', packageId),
 
     // --- apps not on winget: download the vendor .exe and open it ---
-    downloadRun: (key, url, fileName, onLog) => {
+    downloadRun: (key, url, fileName, onLog, referer) => {
         const outCh = `dlrun:out:${key}`;
         const onOut = (_e, line) => onLog?.(line);
         ipcRenderer.on(outCh, onOut);
-        return ipcRenderer.invoke('app:download-run', { key, url, fileName })
+        return ipcRenderer.invoke('app:download-run', { key, url, fileName, referer })
             .catch((e) => ({ ok: false, error: String(e) }))
             .finally(() => ipcRenderer.removeListener(outCh, onOut));
     },

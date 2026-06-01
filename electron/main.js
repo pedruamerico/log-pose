@@ -173,7 +173,21 @@ function createWindow() {
     return win;
 }
 
+// Single-instance guard: a second launch (or the updater's relaunch) should
+// focus the existing window instead of opening a duplicate.
+const gotTheLock = app.requestSingleInstanceLock();
+if (!gotTheLock) app.quit();
+
+app.on('second-instance', () => {
+    if (mainWin) {
+        if (mainWin.isMinimized()) mainWin.restore();
+        mainWin.show();
+        mainWin.focus();
+    }
+});
+
 app.whenReady().then(() => {
+    if (!gotTheLock) return; // a duplicate instance is on its way out; build nothing
     const win = createWindow();
     if (settings.tray) setupTray();
 
@@ -189,7 +203,19 @@ app.whenReady().then(() => {
         autoUpdater.on('error', (err) => {
             win.webContents.send('update:error', { message: String(err) });
         });
+        // Check on launch, then poll so a window left open still catches
+        // releases published after startup. update-available/update-downloaded
+        // fire on every check, driving the in-app update prompt.
         autoUpdater.checkForUpdatesAndNotify().catch(() => {});
+        setInterval(() => { autoUpdater.checkForUpdates().catch(() => {}); }, 6 * 60 * 60 * 1000);
+    }
+
+    // Dev-only: preview the in-app update prompt without publishing a release.
+    // Run with $env:LOGPOSE_FAKE_UPDATE=1; npm run dev to fire a fake update:ready.
+    if (isDev && process.env.LOGPOSE_FAKE_UPDATE) {
+        win.webContents.once('did-finish-load', () => {
+            setTimeout(() => win.webContents.send('update:ready', { version: '9.9.9' }), 1500);
+        });
     }
 
     app.on('activate', () => {
@@ -252,9 +278,17 @@ try {
   $task=New-ScheduledTask -Action $action -Principal $principal
   Register-ScheduledTask -TaskName '${taskName}' -InputObject $task -Force | Out-Null
   Start-ScheduledTask -TaskName '${taskName}'
-  do { Start-Sleep -Milliseconds 800;
-       $info=Get-ScheduledTaskInfo -TaskName '${taskName}'
-  } while ($info.LastTaskResult -eq 267009)  # 267009 = still running
+  # Wait until the task genuinely finishes. Poll BOTH the live State and
+  # LastTaskResult: 267009 = SCHED_S_TASK_RUNNING, 267011 = SCHED_S_TASK_HAS_NOT_RUN
+  # (the engine hasn't spun it up yet — the old loop exited here by mistake).
+  # Bounded to ~10 min so a stuck task can't hang the install forever.
+  $n=0
+  do {
+    Start-Sleep -Milliseconds 800
+    $state=(Get-ScheduledTask -TaskName '${taskName}').State
+    $info=Get-ScheduledTaskInfo -TaskName '${taskName}'
+    $n++
+  } while (($state -eq 'Running' -or $info.LastTaskResult -eq 267009 -or $info.LastTaskResult -eq 267011) -and $n -lt 750)
   Write-Output ("RESULT=" + $info.LastTaskResult)
 } finally {
   Unregister-ScheduledTask -TaskName '${taskName}' -Confirm:$false -ErrorAction SilentlyContinue
@@ -341,13 +375,18 @@ $obj | ConvertTo-Json -Compress
 const https = require('https');
 const os = require('os');
 
-function downloadFile(url, dest, onProgress, maxRedirects = 5) {
+function downloadFile(url, dest, onProgress, referer, maxRedirects = 5) {
     return new Promise((resolve, reject) => {
-        const req = https.get(url, { headers: { 'User-Agent': 'LogPose' } }, (res) => {
+        // Some vendor CDNs (AMD/Akamai) only serve the binary when the request
+        // carries a Referer from their download page; without it they 302 to an
+        // HTML "download incomplete" page. Referer is carried across redirects.
+        const headers = { 'User-Agent': 'LogPose' };
+        if (referer) headers['Referer'] = referer;
+        const req = https.get(url, { headers }, (res) => {
             if ([301, 302, 303, 307, 308].includes(res.statusCode)) {
                 res.resume();
                 if (maxRedirects <= 0) return reject(new Error('too many redirects'));
-                return resolve(downloadFile(res.headers.location, dest, onProgress, maxRedirects - 1));
+                return resolve(downloadFile(res.headers.location, dest, onProgress, referer, maxRedirects - 1));
             }
             if (res.statusCode !== 200) {
                 res.resume();
@@ -370,7 +409,7 @@ function downloadFile(url, dest, onProgress, maxRedirects = 5) {
 }
 
 ipcMain.handle('app:download-run', async (event, payload) => {
-    const { key, url, fileName } = payload || {};
+    const { key, url, fileName, referer } = payload || {};
     const out = (s) => event.sender.send(`dlrun:out:${key}`, s);
     const done = (ok, err) => event.sender.send(`dlrun:done:${key}`, { ok, error: err });
     try {
@@ -381,7 +420,7 @@ ipcMain.handle('app:download-run', async (event, payload) => {
         let lastPct = -1;
         await downloadFile(url, dest, (pct) => {
             if (pct !== lastPct && pct % 5 === 0) { out(`    ${pct}%\n`); lastPct = pct; }
-        });
+        }, referer);
         // Validate it's a real Windows executable: PE files start with "MZ" and
         // are well over 1 KB. Some CDNs return an HTML error page with a 200, so
         // a bad download would otherwise "open" garbage.
@@ -429,8 +468,11 @@ ipcMain.handle('winget:install', async (event, payload) => {
     let code = await streamProcess(event, channelOut, `winget:done:${packageId}`, wingetExe, args);
 
     // Installer prohibits elevation (e.g. Spotify): retry de-elevated as the
-    // interactive user via a scheduled task.
-    if (code === ERR_PROHIBITS_ELEVATION) {
+    // interactive user via a scheduled task. winget's exit code arrives from
+    // child.on('close') as an UNSIGNED DWORD (2316632150), while the constant is
+    // the signed form (-1978335146) — same bits, different sign — so compare both
+    // normalized to unsigned, otherwise the retry never fires.
+    if ((code >>> 0) === (ERR_PROHIBITS_ELEVATION >>> 0)) {
         code = await runDeelevated(out, wingetExe, args);
         event.sender.send(`winget:done:${packageId}`, { exitCode: code });
     }

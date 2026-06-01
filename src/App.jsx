@@ -993,6 +993,37 @@ const OptionsScreen = ({ version, updateState, onCheckUpdates, onInstallUpdate, 
   );
 };
 
+// ============ UPDATE MODAL ============
+// Proactive "new version" prompt. Shows on launch (the main process checks
+// GitHub Releases on whenReady) and live while the window is open (main polls
+// every 6h). The install button stays disabled until the package finished
+// downloading (electron-updater autoDownload), since quitAndInstall needs the
+// downloaded file. Dismissing hides it; a later update:ready re-shows it.
+const UpdateModal = ({ info, onInstall, onDismiss }) => {
+  const t = useT();
+  if (!info) return null;
+  const name = `Log Pose ${info.version || ''}`.trim();
+  return (
+    <div className="cmdk-overlay" onClick={(e) => { if (e.target === e.currentTarget) onDismiss(); }}>
+      <div className="update-modal" role="dialog" aria-label={t('New version available')}>
+        <div className="update-modal-badge"><Icon name="download" size={22} /></div>
+        <h3 className="update-modal-title">{t('New version available')}</h3>
+        <p className="update-modal-text">
+          {info.ready
+            ? `${name} ${t('was downloaded and is ready to install.')}`
+            : `${name} ${t('is being downloaded…')}`}
+        </p>
+        <div className="update-modal-actions">
+          <button className="btn btn-ghost" onClick={onDismiss}>{t('Later')}</button>
+          <button className="btn btn-primary" onClick={onInstall} disabled={!info.ready}>
+            {info.ready ? t('Restart & install') : t('Downloading…')}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // ============ APP ROOT ============
 const App = () => {
   const [route, setRoute]   = React.useState('apps');
@@ -1021,6 +1052,7 @@ const App = () => {
   // ---- Options state
   const [appVersion, setAppVersion] = React.useState('1.0.0');
   const [updateState, setUpdateState] = React.useState('idle'); // idle | checking | available | uptodate
+  const [updateModal, setUpdateModal] = React.useState(null);   // null | { version, ready }
   const [behavior, setBehavior] = React.useState({ startup: false, tray: false, startMinimized: false });
   const [editionLabel, setEditionLabel] = React.useState('Windows');
   const [sysRows, setSysRows] = React.useState(null);
@@ -1032,8 +1064,14 @@ const App = () => {
   // Wire update events.
   React.useEffect(() => {
     if (!bridge) return;
-    bridge.onUpdateAvailable?.(() => setUpdateState('available'));
-    bridge.onUpdateReady?.(() => setUpdateState('available'));
+    bridge.onUpdateAvailable?.((info) => {
+      setUpdateState('available');
+      setUpdateModal({ version: info?.version, ready: false });
+    });
+    bridge.onUpdateReady?.((info) => {
+      setUpdateState('available');
+      setUpdateModal({ version: info?.version, ready: true });
+    });
 
     // Read real tweak states so toggles reflect the actual system.
     if (bridge.tweakStatus) {
@@ -1233,7 +1271,7 @@ const App = () => {
         return;
       }
       if (isDownload) {
-        const res = await bridge.downloadRun(app.id, app.url, app.file, c => appendDownloadLine(key, c.replace(/\s+$/, ''), 'dim'));
+        const res = await bridge.downloadRun(app.id, app.url, app.file, c => appendDownloadLine(key, c.replace(/\s+$/, ''), 'dim'), app.referer);
         appendDownloadLine(key, res.ok ? 'Installer opened — follow its steps.' : `Failed: ${res.error || ''}`, res.ok ? 'ok' : 'err');
         patchDownload(key, { status: res.ok ? 'done' : 'failed', ok: !!res.ok });
         setInstallStates(st => ({ ...st, [app.id]: undefined })); // download+run can't confirm final state
@@ -1693,6 +1731,7 @@ const App = () => {
         />
 
         <CommandPalette open={cmdkOpen} onClose={() => setCmdkOpen(false)} items={cmdkItems} />
+        <UpdateModal info={updateModal} onInstall={onInstallUpdate} onDismiss={() => setUpdateModal(null)} />
       </div>
     </div>
     </LangCtx.Provider>

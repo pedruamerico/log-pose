@@ -1,6 +1,6 @@
 {
   "name": "log-pose",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "description": "Log Pose - Windows app installer, debloat, system info and tweaks",
   "main": "electron/main.js",
   "scripts": {

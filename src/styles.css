@@ -1210,6 +1210,51 @@ button { font-family: inherit; cursor: pointer; }
   font-size: 13px;
 }
 
+/* ============ UPDATE MODAL ============ */
+.update-modal {
+  width: 420px;
+  max-width: calc(100% - 48px);
+  margin-top: 40px;
+  background: #0B0712;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-lg);
+  box-shadow:
+    0 0 0 1px rgba(168, 85, 247, 0.08),
+    0 30px 70px -10px rgba(0,0,0,0.7);
+  padding: 26px 24px 20px;
+  text-align: center;
+  animation: cmdkIn .18s ease both;
+}
+.update-modal-badge {
+  width: 48px;
+  height: 48px;
+  margin: 0 auto 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  color: var(--purple-hi);
+  background: rgba(168, 85, 247, 0.12);
+  border: 1px solid rgba(168, 85, 247, 0.35);
+}
+.update-modal-title {
+  margin: 0 0 6px;
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--text);
+}
+.update-modal-text {
+  margin: 0 0 20px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-mid);
+}
+.update-modal-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+
 /* ============ METRICS ============ */
 .metrics-kpis {
   display: grid;

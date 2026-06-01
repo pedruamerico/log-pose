@@ -40,8 +40,9 @@ window.onlyOS = {
     getHardware: () => safeInvoke('hardware', undefined, { ok: false }),
 
     // --- winget install / uninstall / wipe / upgrade ---
-    installPackage: (packageId, onLog) =>
-        streamInvoke('winget_install', { packageId }, onLog),
+    // `source` is optional ("msstore" for Store-only apps like WhatsApp).
+    installPackage: (packageId, onLog, source) =>
+        streamInvoke('winget_install', { packageId, source }, onLog),
 
     uninstallPackage: (packageId, onLog) =>
         streamInvoke('winget_uninstall', { packageId }, onLog),

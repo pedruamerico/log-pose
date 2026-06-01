@@ -244,7 +244,11 @@ pub fn tweak_set(id: String, enabled: bool) -> Value {
 // --- tweak_status -----------------------------------------------------------
 
 #[tauri::command]
-pub fn tweak_status(ids: Vec<String>) -> Value {
+pub async fn tweak_status(ids: Vec<String>) -> Value {
+    util::blocking(move || tweak_status_inner(ids)).await
+}
+
+fn tweak_status_inner(ids: Vec<String>) -> Value {
     let mut result = serde_json::Map::new();
     for id in ids {
         let on: Option<bool> = match id.as_str() {

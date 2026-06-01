@@ -7,7 +7,11 @@ use serde_json::{json, Value};
 use crate::util;
 
 #[tauri::command]
-pub fn hardware() -> Value {
+pub async fn hardware() -> Value {
+    util::blocking(hardware_inner).await
+}
+
+fn hardware_inner() -> Value {
     // One PowerShell call returning compact JSON, same shape App.jsx expects.
     let ps = r#"
 $ErrorActionPreference='SilentlyContinue'

@@ -19,7 +19,11 @@ fn is_valid_appx(name: &str) -> bool {
 // Features catalog matches its AppX entries against this set. Fast (one
 // Get-AppxPackage call) so it can run on boot without hanging the UI.
 #[tauri::command]
-pub fn appx_list() -> Value {
+pub async fn appx_list() -> Value {
+    util::blocking(appx_list_inner).await
+}
+
+fn appx_list_inner() -> Value {
     let out = util::powershell("Get-AppxPackage | ForEach-Object { $_.Name }");
     let installed: Vec<String> = out
         .lines()
@@ -36,7 +40,11 @@ pub fn appx_list() -> Value {
 // tab calls this separately/async so the UI stays responsive; only the few
 // Capability-type catalog entries (Recall) depend on it.
 #[tauri::command]
-pub fn appx_capabilities() -> Value {
+pub async fn appx_capabilities() -> Value {
+    util::blocking(appx_capabilities_inner).await
+}
+
+fn appx_capabilities_inner() -> Value {
     let caps = util::powershell(
         "Get-WindowsCapability -Online | Where-Object State -eq 'Installed' | ForEach-Object { ($_.Name -split '~')[0] }",
     );

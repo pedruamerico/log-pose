@@ -66,27 +66,54 @@ fn pick() -> Option<String> {
 
 // --- install / uninstall / upgrade (streaming) ------------------------------
 
+// `source` is the optional winget source for the package: the catalogue passes
+// "msstore" for Microsoft Store apps (e.g. WhatsApp, whose vendor .exe no longer
+// exists — it ships only as a Store app). Only "winget"/"msstore" are accepted;
+// anything else is ignored and winget picks the default source.
+fn valid_source(s: &str) -> bool {
+    matches!(s, "winget" | "msstore")
+}
+
 #[tauri::command]
-pub async fn winget_install(package_id: String, channel: Channel<String>) -> Value {
+pub async fn winget_install(
+    package_id: String,
+    source: Option<String>,
+    channel: Channel<String>,
+) -> Value {
     if !util::is_valid_pkg(&package_id) {
         return json!({ "ok": false, "error": "invalid package id" });
     }
-    let code = util::stream(
-        &channel,
-        &resolve(),
-        &[
-            "install",
-            "--id",
-            &package_id,
-            "--exact",
-            "--silent",
-            "--accept-package-agreements",
-            "--accept-source-agreements",
-            "--disable-interactivity",
-        ],
-    )
-    .await;
-    json!({ "ok": code == 0, "exitCode": code })
+    let mut args: Vec<&str> = vec![
+        "install",
+        "--id",
+        &package_id,
+        "--exact",
+        "--silent",
+        "--accept-package-agreements",
+        "--accept-source-agreements",
+        "--disable-interactivity",
+    ];
+    let is_msstore = source.as_deref() == Some("msstore");
+    if let Some(src) = source.as_deref() {
+        if valid_source(src) {
+            args.push("--source");
+            args.push(src);
+        }
+    }
+    let code = util::stream(&channel, &resolve(), &args).await;
+
+    // Store apps need the Microsoft Store / its winget source to be present. On
+    // Atlas OS and similar de-bloated images the Store is often removed, so the
+    // install fails. Surface a clear, actionable message instead of a raw code.
+    if code != 0 && is_msstore {
+        let _ = channel.send(
+            "\n==> Falha ao instalar pela Microsoft Store. Este app só está disponível na Store, \
+             que parece ausente ou desativada neste Windows. Em Sistema → Componentes, use \
+             \"Adicionar Microsoft Store\" e tente novamente.\n"
+                .to_string(),
+        );
+    }
+    json!({ "ok": code == 0, "exitCode": code, "needsStore": code != 0 && is_msstore })
 }
 
 #[tauri::command]
@@ -139,7 +166,11 @@ pub async fn winget_upgrade(package_id: String, channel: Channel<String>) -> Val
 // parse is just omitted (the popover still shows the catalogue description).
 
 #[tauri::command]
-pub fn winget_show(package_id: String) -> Value {
+pub async fn winget_show(package_id: String) -> Value {
+    util::blocking(move || winget_show_inner(package_id)).await
+}
+
+fn winget_show_inner(package_id: String) -> Value {
     if !util::is_valid_pkg(&package_id) {
         return json!({ "ok": false });
     }
@@ -227,6 +258,9 @@ fn name_fallback(id: &str) -> Option<&'static [&'static str]> {
         "RiotGames.RiotClient" => Some(&["Riot Client"]),
         "Discord.Discord" => Some(&["Discord"]),
         "Spotify.Spotify" => Some(&["Spotify"]),
+        // WhatsApp ships only as a Microsoft Store app; match by name too in case
+        // `winget list` shows the Store entry by display name rather than id.
+        "9NKSQGP7F2NH" => Some(&["WhatsApp"]),
         // kind:'download' apps — their catalog id is NOT a winget id, so match by
         // the name winget shows once they're installed (best-effort detection).
         "WhatsApp" => Some(&["WhatsApp"]),
@@ -237,7 +271,11 @@ fn name_fallback(id: &str) -> Option<&'static [&'static str]> {
 }
 
 #[tauri::command]
-pub fn winget_list(catalog_ids: Vec<String>) -> Value {
+pub async fn winget_list(catalog_ids: Vec<String>) -> Value {
+    util::blocking(move || winget_list_inner(catalog_ids)).await
+}
+
+fn winget_list_inner(catalog_ids: Vec<String>) -> Value {
     let (stdout, _) = util::run_capture(
         &resolve(),
         &["list", "--accept-source-agreements", "--disable-interactivity"],
@@ -317,7 +355,11 @@ pub fn winget_list(catalog_ids: Vec<String>) -> Value {
 // --- upgradable (which installed apps have an update) -----------------------
 
 #[tauri::command]
-pub fn winget_upgradable() -> Value {
+pub async fn winget_upgradable() -> Value {
+    util::blocking(winget_upgradable_inner).await
+}
+
+fn winget_upgradable_inner() -> Value {
     let (stdout, _) = util::run_capture(
         &resolve(),
         &[

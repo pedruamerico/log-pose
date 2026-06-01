@@ -744,6 +744,16 @@ const LogDrawer = ({ entry, onClose }) => {
 
 // ============ DOWNLOAD CENTER ============
 const DL_LABEL = { queued: 'Na fila', running: 'Instalando…', done: 'Instalado', failed: 'Falhou' };
+// For kind:'download' apps we only download and open the vendor installer — we
+// can't confirm the user finished it. Don't claim "Instalado"; say the installer
+// was opened (downloading shows "Baixando…" instead of "Instalando…").
+const dlLabel = (d) => {
+  if (d.app.kind === 'download') {
+    if (d.status === 'running') return 'Baixando…';
+    if (d.status === 'done') return 'Instalador aberto';
+  }
+  return DL_LABEL[d.status] || d.status;
+};
 const DownloadCenter = ({ items, onClear }) => {
   const [open, setOpen] = React.useState(null);
   if (!items.length) return null;
@@ -767,7 +777,7 @@ const DownloadCenter = ({ items, onClear }) => {
                 <span className="dl-app-icon">{d.app.icon}</span>
                 <div className="dl-meta">
                   <div className="dl-name">{d.app.name}</div>
-                  <div className="dl-sub">{DL_LABEL[d.status] || d.status}</div>
+                  <div className="dl-sub">{dlLabel(d)}</div>
                 </div>
                 <span className="dl-glyph">
                   {d.status === 'running' ? <span className="spinner" />
@@ -1097,35 +1107,50 @@ const App = () => {
   }, [bridge]);
 
   // On boot: detect installed apps + behavior settings + live inventories.
+  // The backend commands are async (spawn_blocking) so none blocks the IPC
+  // thread, but we still STAGGER them so the window paints first and the slow
+  // winget/CIM queries don't all contend for CPU/disk at the same instant —
+  // that simultaneous burst is what made the window freeze-then-recover.
   React.useEffect(() => {
     if (!bridge) return;
-    refreshInstalled();
+    let cancelled = false;
+    const idle = (fn, timeout = 1500) =>
+      (window.requestIdleCallback || ((cb) => setTimeout(cb, 0)))(fn, { timeout });
 
-    // Real app-behavior settings (startup / tray / start-minimized).
-    bridge.getSettings?.().then((s) => { if (s) setBehavior(s); }).catch(() => {});
-
-    // Live AppX inventory for the debloat (Features) tab. Fast (Get-AppxPackage).
+    // Tier 1 (cheap, needed for the default Apps view): app-behavior settings
+    // and the AppX inventory. Fire right away.
+    bridge.getSettings?.().then((s) => { if (s && !cancelled) setBehavior(s); }).catch(() => {});
     bridge.listAppx?.().then((res) => {
+      if (cancelled) return;
       if (res?.ok) setInstalledAppx(new Set(res.installed));
       setAppxLoading(false);
-    }).catch(() => setAppxLoading(false));
+    }).catch(() => { if (!cancelled) setAppxLoading(false); });
 
-    // Installed Windows capabilities (Recall etc.) — SLOW (Get-WindowsCapability
-    // ~10-30s), so it runs on its own, merging into the AppX set when it returns.
-    // Kept off the critical boot path so the UI never freezes waiting on it.
+    // Tier 2 (registry/CIM, for tabs the user isn't on yet): defer to idle.
+    idle(() => {
+      if (cancelled) return;
+      bridge.listServices?.(window.SERVICES.map(s => s.name)).then((st) => {
+        if (st && !cancelled) setServiceStatus(st);
+      }).catch(() => {});
+      bridge.coreIsolation?.().then((r) => {
+        if (r?.ok && !cancelled) setCoreIso({ hvci: !!r.hvci });
+      }).catch(() => {});
+    });
+
+    // Tier 3 (slow winget list): the heaviest boot query — push it last so the
+    // UI is fully interactive before it runs.
+    idle(() => { if (!cancelled) refreshInstalled(); }, 3000);
+
+    // Tier 4 (slowest, Get-WindowsCapability ~10-30s): runs on its own and
+    // merges into the AppX set whenever it returns. Never on the critical path.
     bridge.listCapabilities?.().then((res) => {
+      if (cancelled) return;
       if (res?.ok && res.installed.length) {
         setInstalledAppx(prev => new Set([...prev, ...res.installed]));
       }
     }).catch(() => {});
 
-    // Live service start types + Core Isolation posture for the Tweaks tab.
-    bridge.listServices?.(window.SERVICES.map(s => s.name)).then((st) => {
-      if (st) setServiceStatus(st);
-    }).catch(() => {});
-    bridge.coreIsolation?.().then((r) => {
-      if (r?.ok) setCoreIso({ hvci: !!r.hvci });
-    }).catch(() => {});
+    return () => { cancelled = true; };
   }, []); // eslint-disable-line
 
   // Check which installed apps have a winget update available.
@@ -1135,7 +1160,14 @@ const App = () => {
       if (res?.ok) setUpgradable(new Set(res.ids));
     }).catch(() => {});
   }, [bridge]);
-  React.useEffect(() => { refreshUpgradable(); }, [refreshUpgradable]);
+  // `winget upgrade --include-unknown` is the single slowest boot query, and it
+  // only feeds the "update available" badges — not the first paint. Defer it well
+  // past the initial render so it never competes with the rest of the boot work.
+  React.useEffect(() => {
+    const idle = window.requestIdleCallback || ((cb) => setTimeout(cb, 0));
+    const handle = idle(() => refreshUpgradable(), { timeout: 5000 });
+    return () => (window.cancelIdleCallback || clearTimeout)(handle);
+  }, [refreshUpgradable]);
 
   // Re-read the live AppX inventory (Features tab refresh button).
   const refreshAppx = React.useCallback(() => {
@@ -1207,7 +1239,7 @@ const App = () => {
         setInstallStates(st => ({ ...st, [app.id]: undefined })); // download+run can't confirm final state
         return;
       }
-      const res = await bridge.installPackage(app.id, c => appendDownloadLine(key, c.replace(/\s+$/, ''), 'dim'));
+      const res = await bridge.installPackage(app.id, c => appendDownloadLine(key, c.replace(/\s+$/, ''), 'dim'), app.source);
       appendDownloadLine(key, res.ok ? 'Successfully installed' : `Failed (exit ${res.exitCode})`, res.ok ? 'ok' : 'err');
       patchDownload(key, { status: res.ok ? 'done' : 'failed', ok: !!res.ok });
       setInstallStates(st => ({ ...st, [app.id]: res.ok ? 'installed' : undefined }));

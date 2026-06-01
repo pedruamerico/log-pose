@@ -12,7 +12,10 @@ window.APPS = [
 
   // Social
   { id: 'Discord.Discord', name: 'Discord', cat: 'Social', desc: 'Voice, video, and text chat for communities.', icon: 'Ds' },
-  { id: 'WhatsApp', name: 'WhatsApp', cat: 'Social', desc: "Meta's messaging app for chats and calls.", icon: 'Wa', kind: 'download', url: 'https://web.whatsapp.com/desktop/windows/release/x64/RELEASE/WhatsAppSetup.exe', file: 'WhatsAppSetup.exe' },
+  // WhatsApp is distributed only via the Microsoft Store now (the standalone
+  // WhatsAppSetup.exe URL was retired — it 302s to web.whatsapp.com). Install it
+  // through winget's msstore source by its Store product id.
+  { id: '9NKSQGP7F2NH', name: 'WhatsApp', cat: 'Social', desc: "Meta's messaging app for chats and calls.", icon: 'Wa', source: 'msstore' },
   { id: 'Microsoft.Teams', name: 'Microsoft Teams', cat: 'Social', desc: 'Work chat, meetings, and calls. New Teams.', icon: 'Tm' },
 
   // Dev

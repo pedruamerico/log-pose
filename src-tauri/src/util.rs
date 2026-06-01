@@ -94,6 +94,21 @@ pub fn powershell(script: &str) -> String {
     out.trim().to_string()
 }
 
+// Run a blocking closure on Tokio's blocking pool and await it. Lets an
+// `async #[tauri::command]` do slow shell-outs (winget/PowerShell/CIM) WITHOUT
+// occupying one of Tauri's limited sync-command worker threads — which, when
+// several boot queries fired at once, saturated the pool and froze the window
+// until they drained. With this, each boot command yields while its child runs.
+pub async fn blocking<F, T>(f: F) -> T
+where
+    F: FnOnce() -> T + Send + 'static,
+    T: Send + 'static,
+{
+    tauri::async_runtime::spawn_blocking(f)
+        .await
+        .unwrap_or_else(|e| panic!("blocking task panicked: {e}"))
+}
+
 // Strip ANSI escapes and turn CR/backspace into newlines — winget interleaves
 // progress spinners and control chars before the real table.
 pub fn clean_winget(raw: &str) -> String {

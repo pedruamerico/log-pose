@@ -9,7 +9,11 @@ use winreg::{RegKey, RegValue};
 use crate::util;
 
 #[tauri::command]
-pub fn startup_list() -> Value {
+pub async fn startup_list() -> Value {
+    util::blocking(startup_list_inner).await
+}
+
+fn startup_list_inner() -> Value {
     let ps = r#"
 $ErrorActionPreference='SilentlyContinue'
 $runKeys = @(

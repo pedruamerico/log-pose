@@ -71,7 +71,11 @@ fn backup_del(name: &str) {
 // Per-service: exists, current Start, and whether it's at/below the optimized
 // (reduced) state. The UI hides services that don't exist on this machine.
 #[tauri::command]
-pub fn service_list(names: Vec<String>) -> Value {
+pub async fn service_list(names: Vec<String>) -> Value {
+    util::blocking(move || service_list_inner(names)).await
+}
+
+fn service_list_inner(names: Vec<String>) -> Value {
     let mut out = serde_json::Map::new();
     for name in names {
         if !valid(&name) {
@@ -130,7 +134,11 @@ pub fn service_set(name: String, optimized: bool) -> Value {
 // can BSOD/boot-loop on incompatible drivers; Windows must run its own check).
 
 #[tauri::command]
-pub fn core_isolation_status() -> Value {
+pub async fn core_isolation_status() -> Value {
+    util::blocking(core_isolation_status_inner).await
+}
+
+fn core_isolation_status_inner() -> Value {
     // SecurityServicesRunning contains 2 when HVCI is actually running.
     let running = util::powershell(
         "(Get-CimInstance -Namespace root\\Microsoft\\Windows\\DeviceGuard -ClassName Win32_DeviceGuard).SecurityServicesRunning -join ','",

@@ -174,8 +174,9 @@ function createWindow() {
 }
 
 // Single-instance guard: a second launch (or the updater's relaunch) should
-// focus the existing window instead of opening a duplicate.
-const gotTheLock = app.requestSingleInstanceLock();
+// focus the existing window instead of opening a duplicate. Skipped in dev so
+// the dev instance isn't blocked by an installed copy holding the lock.
+const gotTheLock = isDev || app.requestSingleInstanceLock();
 if (!gotTheLock) app.quit();
 
 app.on('second-instance', () => {
@@ -672,6 +673,8 @@ ipcMain.handle('open-external', async (event, url) => {
     if (typeof url === 'string' && url.startsWith('https://')) { await shell.openExternal(url); return { ok: true }; }
     return { ok: false };
 });
+
+ipcMain.handle('app:version', () => app.getVersion());
 
 ipcMain.handle('update:install', async () => {
     if (autoUpdater && !isDev) { autoUpdater.quitAndInstall(); return { ok: true }; }

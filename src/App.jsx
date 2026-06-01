@@ -1064,6 +1064,7 @@ const App = () => {
   // Wire update events.
   React.useEffect(() => {
     if (!bridge) return;
+    bridge.getAppVersion?.().then(v => { if (v) setAppVersion(v); }).catch(() => {});
     bridge.onUpdateAvailable?.((info) => {
       setUpdateState('available');
       setUpdateModal({ version: info?.version, ready: false });

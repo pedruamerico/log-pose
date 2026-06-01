@@ -18,6 +18,7 @@ function streamingInvoke(invokeChannel, key, outPrefix, onLog, payload) {
 contextBridge.exposeInMainWorld('onlyOS', {
     // --- system info ---
     getHardware: () => ipcRenderer.invoke('system:hardware'),
+    getAppVersion: () => ipcRenderer.invoke('app:version'),
 
     // --- winget install / uninstall / wipe / upgrade ---
     // source is optional ("msstore" for Store-only apps like WhatsApp).

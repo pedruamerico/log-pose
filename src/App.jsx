@@ -344,7 +344,7 @@ const AppsScreen = ({ cat, installStates, onInstall, onUninstall, upgradable, on
 // Debloat tab: each catalog entry's present/removed state is read live from
 // the machine (installedAppx). Present packages can be removed; removed ones
 // just show their state. No fiction — reflects what's actually installed.
-const FeaturesScreen = ({ features, installedAppx, onRemove, onRemoveRecommended, batchRemoving, removedSet, removingSet, loading }) => {
+const FeaturesScreen = ({ features, installedAppx, onRemove, onRestore, onRemoveRecommended, batchRemoving, removedSet, removingSet, loading }) => {
   const t = useT();
   const [filter, setFilter] = React.useState('all');
   const [fquery, setFquery] = React.useState('');
@@ -404,7 +404,10 @@ const FeaturesScreen = ({ features, installedAppx, onRemove, onRemoveRecommended
               {removing ? t('Removing…') : t('Remove')}
             </button>
           ) : (
-            <span style={{ fontSize: 11.5, color: 'var(--text-dim)' }}>—</span>
+            <button className="btn btn-sm" disabled={removing || batchRemoving} onClick={() => onRestore(f)}>
+              <Icon name="refresh" size={12} />
+              {removing ? t('Restoring…') : t('Restore')}
+            </button>
           )}
         </span>
       </div>
@@ -1073,29 +1076,48 @@ const App = () => {
     } catch { /* keep current state on failure */ }
   };
 
-  // On boot: detect which catalog apps are already installed via `winget list`.
-  React.useEffect(() => {
-    if (!bridge) return;
+  // Detect which catalog apps are installed via `winget list` (matches winget
+  // ids and, for kind:'download' apps, by name via the backend name_fallback).
+  // Used on boot and by the Apps "Refresh" button so a freshly-installed vendor
+  // app (WhatsApp/NVIDIA/AMD) flips to "installed" once the user re-checks.
+  const refreshInstalled = React.useCallback(() => {
+    if (!bridge?.listInstalled) return;
     bridge.listInstalled(window.APPS.map(a => a.id)).then((res) => {
       if (!res?.ok) return;
       const installedIds = new Set(res.installed);
       setInstallStates((prev) => {
         const next = { ...prev };
         for (const app of window.APPS) {
+          // Don't clobber an in-progress install; only set installed when found.
           if (installedIds.has(app.id)) next[app.id] = 'installed';
         }
         return next;
       });
     }).catch(() => {});
+  }, [bridge]);
+
+  // On boot: detect installed apps + behavior settings + live inventories.
+  React.useEffect(() => {
+    if (!bridge) return;
+    refreshInstalled();
 
     // Real app-behavior settings (startup / tray / start-minimized).
     bridge.getSettings?.().then((s) => { if (s) setBehavior(s); }).catch(() => {});
 
-    // Live AppX inventory for the debloat (Features) tab.
+    // Live AppX inventory for the debloat (Features) tab. Fast (Get-AppxPackage).
     bridge.listAppx?.().then((res) => {
       if (res?.ok) setInstalledAppx(new Set(res.installed));
       setAppxLoading(false);
     }).catch(() => setAppxLoading(false));
+
+    // Installed Windows capabilities (Recall etc.) — SLOW (Get-WindowsCapability
+    // ~10-30s), so it runs on its own, merging into the AppX set when it returns.
+    // Kept off the critical boot path so the UI never freezes waiting on it.
+    bridge.listCapabilities?.().then((res) => {
+      if (res?.ok && res.installed.length) {
+        setInstalledAppx(prev => new Set([...prev, ...res.installed]));
+      }
+    }).catch(() => {});
 
     // Live service start types + Core Isolation posture for the Tweaks tab.
     bridge.listServices?.(window.SERVICES.map(s => s.name)).then((st) => {
@@ -1220,7 +1242,14 @@ const App = () => {
   };
   const onInstall = (app) => {
     if (installStates[app.id] === 'installing' || installStates[app.id] === 'installed') return;
-    setInstallStates(s => ({ ...s, [app.id]: 'installing' }));
+    // kind:'download' apps just open a vendor installer — we can't track their
+    // real install, so don't fake an 'installing'/'installed' state for them
+    // (that was the WhatsApp bug: it showed installed without being installed).
+    // winget apps get the optimistic 'installing' spinner; download apps stay
+    // neutral and only flip to 'installed' if winget name-detection finds them.
+    if (app.kind !== 'download') {
+      setInstallStates(s => ({ ...s, [app.id]: 'installing' }));
+    }
     enqueue(app, 'install');
   };
   const onUpgrade = (app) => {
@@ -1279,6 +1308,41 @@ const App = () => {
       if (res.ok) setRemovedSet(prev => new Set(prev).add(f.name));
       setLog(prev => (prev && prev.app.id === logApp.id)
         ? { ...prev, lines: [...prev.lines, { text: res.ok ? 'Removed.' : `Failed (exit ${res.exitCode})`, kind: res.ok ? 'ok' : 'err' }], done: true }
+        : prev);
+    } catch (e) {
+      setLog(prev => prev ? { ...prev, lines: [...prev.lines, { text: `Error: ${e.message}`, kind: 'err' }], done: true } : prev);
+    }
+    clearRemoving();
+  };
+
+  // ---- Restore a removed item (AppX: re-register/Store; Capability: DISM add).
+  const onRestoreAppx = async (f) => {
+    setRemovingSet(prev => new Set(prev).add(f.name));
+    const logApp = { name: f.label || f.name, id: f.name + ' · restoring' };
+    const cmdLabel = f.type === 'Capability' ? `DISM /Add-Capability ${f.name}` : `Restore ${f.name}`;
+    setLog({ app: logApp, lines: [{ text: cmdLabel, kind: '' }], done: false });
+
+    const clearRemoving = () => setRemovingSet(prev => { const n = new Set(prev); n.delete(f.name); return n; });
+
+    if (!bridge) {
+      setLog(prev => prev ? { ...prev, lines: [...prev.lines, { text: 'No backend (browser preview).', kind: 'dim' }], done: true } : prev);
+      clearRemoving();
+      return;
+    }
+    try {
+      const onChunk = (chunk) =>
+        setLog(prev => (prev && prev.app.id === logApp.id) ? { ...prev, lines: [...prev.lines, { text: chunk.replace(/\s+$/, ''), kind: 'dim' }] } : prev);
+      const res = f.type === 'Capability'
+        ? await bridge.restoreFeature(f.name, onChunk)
+        : await bridge.restoreAppx(f.name, onChunk);
+      // On success the item is no longer "removed this session"; drop it from the
+      // set and re-add to the live present set so the row flips back to Installed.
+      if (res.ok) {
+        setRemovedSet(prev => { const n = new Set(prev); n.delete(f.name); return n; });
+        setInstalledAppx(prev => new Set(prev).add(f.name));
+      }
+      setLog(prev => (prev && prev.app.id === logApp.id)
+        ? { ...prev, lines: [...prev.lines, { text: res.ok ? 'Restored.' : `Failed (exit ${res.exitCode})`, kind: res.ok ? 'ok' : 'err' }], done: true }
         : prev);
     } catch (e) {
       setLog(prev => prev ? { ...prev, lines: [...prev.lines, { text: `Error: ${e.message}`, kind: 'err' }], done: true } : prev);
@@ -1561,7 +1625,7 @@ const App = () => {
                       <Icon name="refresh" size={15} />{t('Update all')} ({catalogUpdateCount})
                     </button>
                   )}
-                  <button className="btn" onClick={refreshUpgradable}><Icon name="refresh" size={15} />{t('Refresh')}</button>
+                  <button className="btn" onClick={() => { refreshInstalled(); refreshUpgradable(); }}><Icon name="refresh" size={15} />{t('Refresh')}</button>
                 </>
               )}
               {route === 'features' && (
@@ -1577,7 +1641,7 @@ const App = () => {
 
             <div className="page-body" style={{ position: 'relative' }}>
               {route === 'apps'     && <AppsScreen cat={cat} installStates={installStates} onInstall={onInstall} onUninstall={onUninstall} upgradable={upgradable} onUpgrade={onUpgrade} />}
-              {route === 'features' && <FeaturesScreen features={features} installedAppx={installedAppx} onRemove={onRemoveAppx} onRemoveRecommended={onRemoveRecommended} batchRemoving={batchRemoving} removedSet={removedSet} removingSet={removingSet} loading={appxLoading} />}
+              {route === 'features' && <FeaturesScreen features={features} installedAppx={installedAppx} onRemove={onRemoveAppx} onRestore={onRestoreAppx} onRemoveRecommended={onRemoveRecommended} batchRemoving={batchRemoving} removedSet={removedSet} removingSet={removingSet} loading={appxLoading} />}
               {route === 'system'   && <SystemScreen onAction={onAction} rows={sysRows} />}
               {route === 'tweaks'   && <TweaksScreen tweaks={tweaks} onToggle={onToggle} gameModeOn={gameModeOn} gameBusy={gameBusy} onToggleGameMode={onToggleGameMode} services={window.SERVICES} serviceStatus={serviceStatus} onToggleService={onToggleService} coreIso={coreIso} onOpenCoreIso={onOpenCoreIso} />}
               {route === 'options'  && <OptionsScreen

@@ -73,7 +73,11 @@ window.onlyOS = {
 
     // --- AppX debloat (live present/remove) ---
     listAppx: () => safeInvoke('appx_list', undefined, { ok: false, installed: [] }),
+    // Slow — installed Windows capabilities (Recall etc.); called off the boot path.
+    listCapabilities: () => safeInvoke('appx_capabilities', undefined, { ok: false, installed: [] }),
     removeAppx: (name, onLog) => streamInvoke('appx_remove', { name }, onLog),
+    // Restore a removed AppX (re-register staged copy, or open the Store page).
+    restoreAppx: (name, onLog) => streamInvoke('appx_restore', { name }, onLog),
 
     // --- maintenance actions ---
     runMaintenance: (actionId, onLog) =>

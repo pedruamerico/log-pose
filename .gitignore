@@ -8,3 +8,12 @@ dist-app/
 src-tauri/target/
 # Tauri-generated permission schemas (derived at build time)
 src-tauri/gen/
+
+# build/release scratch
+build-out.txt
+check-out.txt
+dev-out.txt
+LogPose-Setup.exe
+latest.json
+commit-msg.txt
+

@@ -227,6 +227,11 @@ fn name_fallback(id: &str) -> Option<&'static [&'static str]> {
         "RiotGames.RiotClient" => Some(&["Riot Client"]),
         "Discord.Discord" => Some(&["Discord"]),
         "Spotify.Spotify" => Some(&["Spotify"]),
+        // kind:'download' apps — their catalog id is NOT a winget id, so match by
+        // the name winget shows once they're installed (best-effort detection).
+        "WhatsApp" => Some(&["WhatsApp"]),
+        "NvidiaApp" => Some(&["NVIDIA App"]),
+        "AmdAdrenalin" => Some(&["AMD Software", "Adrenalin"]),
         _ => None,
     }
 }

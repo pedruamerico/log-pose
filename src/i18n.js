@@ -125,6 +125,8 @@ const PT = {
   'Sistema': 'Sistema',
   'Outros': 'Outros',
   'Remove recommended': 'Remover recomendados',
+  'Restore': 'Restaurar',
+  'Restoring…': 'Restaurando…',
   'Remove all recommended items that are installed': 'Remove todos os itens recomendados que estão instalados',
   'Disable Windows Copilot': 'Desativar o Windows Copilot',
   'Applies the TurnOffWindowsCopilot policy so Copilot stays off for all users. Off = Windows default (Copilot allowed).':

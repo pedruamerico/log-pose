@@ -1,0 +1,68 @@
+{
+  "name": "log-pose",
+  "version": "1.4.0",
+  "description": "Log Pose - Windows app installer, debloat, system info and tweaks",
+  "main": "electron/main.js",
+  "scripts": {
+    "vite": "vite",
+    "build:renderer": "vite build",
+    "dev": "concurrently -k \"vite\" \"wait-on tcp:5173 && node electron/dev-launch.js\"",
+    "build": "vite build && electron-builder",
+    "build:portable": "vite build && electron-builder --win portable",
+    "publish": "vite build && electron-builder --win --publish always"
+  },
+  "author": "pedronly",
+  "license": "MIT",
+  "dependencies": {
+    "@fontsource/inter": "^5.2.6",
+    "@fontsource/space-mono": "^5.2.9",
+    "electron-updater": "^6.3.9",
+    "simple-icons": "^16.21.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.4",
+    "concurrently": "^9.1.0",
+    "electron": "^33.0.0",
+    "electron-builder": "^25.0.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "vite": "^6.0.0",
+    "wait-on": "^8.0.1"
+  },
+  "build": {
+    "appId": "com.pedronly.log-pose",
+    "productName": "Log Pose",
+    "directories": {
+      "output": "dist-app"
+    },
+    "files": [
+      "electron/**/*",
+      "dist/**/*"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "assets/icon.ico",
+      "requestedExecutionLevel": "requireAdministrator"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": true,
+      "allowToChangeInstallationDirectory": false,
+      "artifactName": "LogPose-Setup.exe",
+      "installerIcon": "assets/installer-icon.ico",
+      "uninstallerIcon": "assets/installer-icon.ico"
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "pedruamerico",
+      "repo": "log-pose"
+    }
+  }
+}
